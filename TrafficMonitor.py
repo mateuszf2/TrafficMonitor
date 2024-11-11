@@ -6,6 +6,8 @@ from sort import *
 import numpy as np
 import torch
 from ultralytics import YOLO
+from collections import defaultdict
+
 
 # Wykrywanie urządzenia CUDA
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -119,9 +121,40 @@ cv2.setMouseCallback('Traffic Tracking', mouse_callback)
 
 isFirstFrame= True
 
+# Define a dictionary to store previous frame positions for each vehicle
+car_positions = defaultdict(list)
+car_speeds = {}
+
+# Set video frame rate (assuming 30 FPS)
+FPS = 30
+TIME_BETWEEN_FRAMES = 1 / FPS  # Time between frames in seconds
+
+def calculate_speed(distance_pixels, px_to_one_meter):
+    # Convert pixels to meters
+    distance_meters = distance_pixels / px_to_one_meter
+    # Calculate speed in meters per second
+    speed_mps = distance_meters / TIME_BETWEEN_FRAMES
+    # Convert speed to km/h
+    speed_kph = speed_mps * 3.6
+    return speed_kph
+
+# Define a dictionary to store recent speeds for each car to smooth the results
+speed_history = defaultdict(list)
+WINDOW_SIZE = 30  # The number of frames to average over
+
+def moving_average(speeds):
+    return sum(speeds) / len(speeds) if speeds else 0
+
+# Dictionary to store the last frame where each car was detected
+last_seen_frame = defaultdict(lambda: -1)  # -1 indicates the car has not been seen yet
+FRAME_GAP_THRESHOLD = 10  # Number of frames after which speed history should reset
+
+current_frame = 0
+
 while cap.isOpened():
     success, frame = cap.read()
     if success:
+        current_frame += 1
         results = model(frame, stream=True)
         detections = np.empty((0, 5))
 
@@ -138,22 +171,53 @@ while cap.isOpened():
         resultsTracker = tracker.update(detections)
         car_centers = {}
 
-
         for rt in resultsTracker:
             x1, y1, x2, y2, id = map(int, rt)
             w, h = x2 - x1, y2 - y1
             cx, cy = x1 + w // 2, y1 + h // 2
             color = (0, 255, 0) if any(id in group for group in carsGroupedByArr) else (255, 0, 255)
             cvzone.cornerRect(frame, (x1, y1, w, h), l=9, rt=2, colorR=color)
-            cvzone.putTextRect(frame, f' {id}', (max(0, x1), max(35, y1)), scale=2, thickness=3, offset=10)\
+            cvzone.putTextRect(frame, f'{id}', (max(0, x1), max(35, y1)), scale=2, thickness=2, offset=1, colorR="")
 
-            car_centers[id] = ((cx, cy), w) #w- width, potrzebne też do przybliżania metrów
+            car_centers[id] = ((cx, cy), w)
 
             if id >= len(trackIdBoolArray):
                 trackIdBoolArray.extend([False] * (id + 1 - len(trackIdBoolArray)))
 
             if not trackIdBoolArray[id]:
                 groupCarsByRoadLine(id, cx, cy)
+
+            # Check for a break in detection (occlusion or reappearance)
+            if last_seen_frame[id] == -1 or (current_frame - last_seen_frame[id] > FRAME_GAP_THRESHOLD):
+                # Reset speed history if the car was unseen for too many frames
+                speed_history[id] = []  # Clear the speed history to avoid a spike
+                car_positions[id] = [(cx, cy)]  # Reset position history
+                car_speeds[id] = 0  # Reset displayed speed
+            else:
+                # Normal speed calculation if detection is consistent
+                if len(car_positions[id]) > 0:
+                    prev_x, prev_y = car_positions[id][-1]
+                    distance_pixels = math.sqrt((cx - prev_x) ** 2 + (cy - prev_y) ** 2)
+                    px_to_one_meter = w / CAR_LENGTH
+                    speed_kph = calculate_speed(distance_pixels, px_to_one_meter)
+
+                    # Update speed history and calculate smoothed speed
+                    speed_history[id].append(speed_kph)
+                    if len(speed_history[id]) > WINDOW_SIZE:
+                        speed_history[id].pop(0)
+
+                    smoothed_speed_kph = moving_average(speed_history[id])
+                    car_speeds[id] = smoothed_speed_kph
+
+                    # Display the smoothed speed on the frame
+                    speed_text = f"{smoothed_speed_kph:.2f} km/h"
+                    cv2.putText(frame, speed_text, (x1, y1 - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+
+            # Update last seen frame and position history for the next frame
+            last_seen_frame[id] = current_frame
+            car_positions[id].append((cx, cy))
+            if len(car_positions[id]) > 2:
+                car_positions[id].pop(0)
 
         drawSegmentLines(frame)
         drawLinesBetweenCars(frame, car_centers)
