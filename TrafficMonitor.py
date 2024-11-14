@@ -46,6 +46,7 @@ carsGroupedByArr = []
 roadLineSegments = []  # Segmenty dla każdego pasa jako lista punktów
 trackIdBoolArray = []
 
+firstFrame = None  # to display lines on the frist, stopped frame
 def calculateSegmentLineEquations():
     # Oblicza równania prostych segmentów między klikniętymi punktami
     global roadLineSegments, carsGroupedByArr
@@ -59,6 +60,9 @@ def calculateSegmentLineEquations():
                 b = p1[1] - a * p1[0]
                 roadLineSegments.append((a, b, p1, p2))
                 carsGroupedByArr.append([])  # Dodaj pustą listę dla każdego segmentu
+                if isFirstFrame:
+                    drawSegmentLines(firstFrame) #to display lines on the frist, stopped frame
+                    cv2.imshow("Traffic Tracking", firstFrame)
 
 def drawSegmentLines(frame):
     # Rysowanie odcinków między klikniętymi punktami na klatce
@@ -154,6 +158,17 @@ current_frame = 0
 while cap.isOpened():
     success, frame = cap.read()
     if success:
+        if isFirstFrame:
+            firstFrame = frame.copy()
+            cv2.imshow("Traffic Tracking", firstFrame)
+            while True:
+                #To start video you should click 'd'
+                if cv2.waitKey(1) & 0xFF == ord('d'):
+                    break
+            isFirstFrame = False
+
+
+
         current_frame += 1
         results = model(frame, stream=True)
         detections = np.empty((0, 5))
@@ -225,9 +240,6 @@ while cap.isOpened():
         cv2.imshow("Traffic Tracking", frame)
         out.write(frame)
 
-        if isFirstFrame:
-            cv2.waitKey(0)
-            isFirstFrame = False
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
