@@ -46,6 +46,9 @@ carsGroupedByArr = []
 roadLineSegments = []  # Segmenty dla każdego pasa jako lista punktów
 trackIdBoolArray = []
 
+rightClicked_points = []
+lightLineSegments = []
+
 firstFrame = None  # to display lines on the frist, stopped frame
 def calculateSegmentLineEquations():
     # Oblicza równania prostych segmentów między klikniętymi punktami
@@ -118,6 +121,40 @@ def mouse_callback(event, x, y, flags, param):
         clicked_points.append((x, y))
         if len(clicked_points) % 2 == 0:
             calculateSegmentLineEquations()
+    if event == cv2.EVENT_RBUTTONDOWN:
+        rightClicked_points.append((x, y))
+        if len(rightClicked_points) % 2 == 0:
+            calculateLightLines()
+
+def calculateLightLines():
+    global lightLineSegments
+    lightLineSegments = []
+    for i in range(0, len(rightClicked_points), 2):
+        if i+1 < len(rightClicked_points):
+            p1, p2 = rightClicked_points[i], rightClicked_points[i+1]
+            if p1[0] != p2[0]:  # Unikaj dzielenia przez zero
+                a = (p2[1] - p1[1]) / (p2[0] - p1[0])
+                b = p1[1] - a * p1[0]
+                lightLineSegments.append((a, b, p1, p2))
+                if isFirstFrame:
+                    drawLightLines(firstFrame) #to display lines on the frist, stopped frame
+                    cv2.imshow("Traffic Tracking", firstFrame)
+#lines for traffic lights, to detect if car breaks the law
+def drawLightLines(frame):
+    global isLightEntered
+    for (a, b, p1, p2) in lightLineSegments:
+        color = (255, 0, 0) if not isLightEntered else (0, 0, 255)
+        cv2.line(frame, p1, p2, color, 2)
+
+isLightEntered= False
+def checkIfEnterLightLine(cx, cy):
+    for a, b, p1, p2 in lightLineSegments:
+        # Sprawdza, czy punkt (cx, cy) jest blisko odcinka
+        if abs(cy - (a * cx + b)) < 10 and p1[0] <= cx <= p2[0]:
+            global isLightEntered
+            isLightEntered = True
+            break
+
 
 # Przypisanie obsługi zdarzeń myszy
 cv2.namedWindow('Traffic Tracking')
@@ -234,7 +271,12 @@ while cap.isOpened():
             if len(car_positions[id]) > 2:
                 car_positions[id].pop(0)
 
+            if not isLightEntered:
+                checkIfEnterLightLine(cx, cy)
+
         drawSegmentLines(frame)
+        drawLightLines(frame)
+        isLightEntered = False
         drawLinesBetweenCars(frame, car_centers)
 
         cv2.imshow("Traffic Tracking", frame)
