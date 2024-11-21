@@ -2,6 +2,8 @@ import cv2
 import cvzone
 import math
 
+from PIL.ImageChops import offset
+
 from sort import *
 import numpy as np
 import torch
@@ -15,6 +17,10 @@ print(f"Urządzenie używane: {device}")
 
 # Ładowanie modelu YOLO
 model = YOLO("yolov8l.pt")
+lightsModel = YOLO('lightsYolo.pt')
+
+# Plik do zapisywania które auto przejechało na jakim świetle
+fileLights = open('lightsData.txt', 'a')
 
 # Wczytanie wideo
 video_path = './ruch_uliczny.mp4'
@@ -30,6 +36,8 @@ classNames = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "trai
               "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone",
               "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors",
               "teddy bear", "hair drier", "toothbrush"]
+
+classNamesLights = ['Traffic Light -Green-', 'Traffic Light -Off-', 'Traffic Light -Red-', 'Traffic Light -Yellow-']
 
 CAR_LENGTH = 4.7 #przyjęta długość auta w metrach
 
@@ -146,14 +154,22 @@ def drawLightLines(frame):
         color = (255, 0, 0) if not isLightEntered else (0, 0, 255)
         cv2.line(frame, p1, p2, color, 2)
 
+isRed = False
 isLightEntered= False
-def checkIfEnterLightLine(cx, cy):
+cars_has_crossed_light = {}
+def checkIfEnterLightLine(cx, cy, id):
+    global cars_has_crossed_light
+    #cars_has_crossed_light.get(id, False) sprawdza czy w danym id jest True, jeśli nie byłoby w słowniku klucza o danym id to nie będzie błędu bo wtedy przyjmujemy domyślnie False dla takiego id
+    if cars_has_crossed_light.get(id, False):
+        return False
     for a, b, p1, p2 in lightLineSegments:
         # Sprawdza, czy punkt (cx, cy) jest blisko odcinka
         if abs(cy - (a * cx + b)) < 10 and p1[0] <= cx <= p2[0]:
             global isLightEntered
             isLightEntered = True
-            break
+            cars_has_crossed_light[id] = True
+            return True
+    return False
 
 
 # Przypisanie obsługi zdarzeń myszy
@@ -223,6 +239,23 @@ while cap.isOpened():
         resultsTracker = tracker.update(detections)
         car_centers = {}
 
+        #Traffic lights model detection
+        lightResults = lightsModel(frame, stream=True)
+
+        for lr in lightResults:
+            boxes = lr.boxes
+            for box in boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                w, h = x2 -x1, y2 - y1
+                conf = math.ceil((box.conf[0]*100)) / 100
+                cls = int(box.cls[0])
+
+                if classNamesLights[cls] == "Traffic Light -Red-":
+                    isRed = True
+                elif classNamesLights[cls] == "Traffic Light -Green-":
+                    isRed = False
+            cvzone.putTextRect(frame, f'Are the lights red? {isRed}', (50, 50), scale=2, thickness=2, offset=1, colorR="")
+
         for rt in resultsTracker:
             x1, y1, x2, y2, id = map(int, rt)
             w, h = x2 - x1, y2 - y1
@@ -271,8 +304,8 @@ while cap.isOpened():
             if len(car_positions[id]) > 2:
                 car_positions[id].pop(0)
 
-            if not isLightEntered:
-                checkIfEnterLightLine(cx, cy)
+            if checkIfEnterLightLine(cx, cy, id):
+                fileLights.write(f'{id} run through a red light? {isRed}\n')
 
         drawSegmentLines(frame)
         drawLightLines(frame)
@@ -288,6 +321,7 @@ while cap.isOpened():
     else:
         break
 
+fileLights.close()
 cap.release()
 out.release()
 cv2.destroyAllWindows()
