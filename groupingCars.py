@@ -24,7 +24,7 @@ def group_cars_by_roadLine(trackId, cx, cy,roadLineSegments,trackIdBoolArray,car
     # Grupuje auta według najbliższego pasa ruchu
     for i, (a, b, p1, p2) in enumerate(roadLineSegments):
         # Sprawdza, czy punkt (cx, cy) jest blisko odcinka
-        if abs(cy - (a * cx + b)) < 10 and p1[0] <= cx <= p2[0]:
+        if abs(cy - (a * cx + b)) < 10 and p1[0] - 20 <= cx <= p2[0] + 20:
             trackIdBoolArray[trackId] = True
             carsGroupedByArr[i].append(trackId)
             break
