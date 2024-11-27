@@ -1,6 +1,8 @@
 import cv2
 
-def calculate_light_lines(lightLineSegments,rightClickedPoints,isFirstFrame,firstFrame,roadLineSegments):
+isLightEntered= False
+carsHasCrossedLight = {}
+def calculate_light_lines(lightLineSegments,rightClickedPoints,isFirstFrame,firstFrame):
     for i in range(0, len(rightClickedPoints), 2):
         if i+1 < len(rightClickedPoints):
             p1, p2 = rightClickedPoints[i], rightClickedPoints[i+1]
@@ -10,7 +12,7 @@ def calculate_light_lines(lightLineSegments,rightClickedPoints,isFirstFrame,firs
                 lightLineSegments.append((a, b, p1, p2))
                 if isFirstFrame:
                     # Aby wyświetlić linie na pierwszej, zatrzymanej klatce
-                    draw_light_lines(firstFrame,roadLineSegments)
+                    draw_light_lines(firstFrame,lightLineSegments)
                     cv2.imshow("Traffic Tracking", firstFrame)
     return lightLineSegments
 # Linie do sygnalizacji świetlnej, umożliwiające wykrycie, czy samochód łamie prawo
@@ -20,8 +22,6 @@ def draw_light_lines(frame,lightLineSegments):
         color = (255, 0, 0) if not isLightEntered else (0, 0, 255)
         cv2.line(frame, p1, p2, color, 2)
 
-isLightEntered= False
-carsHasCrossedLight = {}
 def check_if_enter_light_line(cx, cy, id,lightLineSegments):
     global carsHasCrossedLight
     #carsHasCrossedLight.get(id, False) sprawdza czy w danym id jest True,

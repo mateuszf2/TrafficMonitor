@@ -26,10 +26,12 @@ model = YOLO("yolov8l.pt")
 lightsModel = YOLO('lightsYolo.pt')
 
 # Plik do zapisywania które auto przejechało na jakim świetle
-fileLights = open('lightsData.txt', 'a')
+fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
-videoPath = './ruch_uliczny.mp4'
+#videoPath = './ruch_uliczny.mp4'
+#videoPath = '../trafficMonitorVideos/VID_20241122_142222.mp4'
+videoPath = './toya_żeligowskiego.mp4'
 cap = cv2.VideoCapture(videoPath)
 
 classNames = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
@@ -52,7 +54,7 @@ tracker = Sort(max_age=150, min_hits=3, iou_threshold=0.2)
 
 # Tworzenie pliku wideo wyjściowego
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-out = cv2.VideoWriter('yolo.mp4', fourcc, 30, (1548, 860), isColor=True)
+out = cv2.VideoWriter('yolo.mp4', fourcc, 30, (1546, 866), isColor=True)
 
 # Definicje zmiennych globalnych
 clickedPoints = []  # Punkty kliknięte przez użytkownika do definiowania pasów ruchu
@@ -75,7 +77,7 @@ def mouse_callback(event, x, y, flags, param):
     if event == cv2.EVENT_RBUTTONDOWN:
         rightClickedPoints.append((x, y))
         if len(rightClickedPoints) % 2 == 0:
-            lightLineSegments=calculate_light_lines(lightLineSegments,rightClickedPoints,isFirstFrame,firstFrame,roadLineSegments)
+            lightLineSegments=calculate_light_lines(lightLineSegments,rightClickedPoints,isFirstFrame,firstFrame)
 
 # Przypisanie obsługi zdarzeń myszy
 cv2.namedWindow('Traffic Tracking')
