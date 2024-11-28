@@ -31,7 +31,7 @@ fileLights = open('lightsData.txt', 'w')
 # Wczytanie wideo
 #videoPath = './ruch_uliczny.mp4'
 #videoPath = '../trafficMonitorVideos/VID_20241122_142222.mp4'
-videoPath = './toya_żeligowskiego.mp4'
+videoPath = './Videos/VID_20241122_142222.mp4'
 cap = cv2.VideoCapture(videoPath)
 
 classNames = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
@@ -57,27 +57,49 @@ fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out = cv2.VideoWriter('yolo.mp4', fourcc, 30, (1546, 866), isColor=True)
 
 # Definicje zmiennych globalnych
-clickedPoints = []  # Punkty kliknięte przez użytkownika do definiowania pasów ruchu
+clickedPoints = []  # Punkty kliknięte przez użytkownika do definiowania pasów ruchu (button 1)
 carsGroupedByArr = []
 roadLineSegments = []  # Segmenty dla każdego pasa jako lista punktów
 trackIdBoolArray = []
 
-rightClickedPoints = []
+rightClickedPoints = [] # Punkty kliknięte do definiowania pasów świateł (button 2)
 lightLineSegments = []
+
+thirdClickedPoints = [] # Punkty kliknięte do definiowania położenia sygnalizatora (sygnalizator przypisany do konkretnego pasa świateł)
 
 firstFrame = None  # Aby wyświetlić linie na pierwszej, zatrzymanej klatce
 isFirstFrame= True
 
+def draw_light_cricle(frame):
+    for i, (x, y) in enumerate(thirdClickedPoints):
+        cv2.circle(frame, (x, y), 6, (255, 0, 255), -1)
+        cv2.putText(frame, f"numer: {i}", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
+
+selectedOption = 1 #selectedOption = 1 BUTTON1 , selectedOption = 2 BUTTON2
 def mouse_callback(event, x, y, flags, param):
-    global roadLineSegments,carsGroupedByArr,lightLineSegments
+    global roadLineSegments,carsGroupedByArr,lightLineSegments, selectedOption
     if event == cv2.EVENT_LBUTTONDOWN:
-        clickedPoints.append((x, y))
-        if len(clickedPoints) % 2 == 0:
-            roadLineSegments,carsGroupedByArr=calculate_segment_line_equations(roadLineSegments,carsGroupedByArr,clickedPoints,isFirstFrame,firstFrame)
-    if event == cv2.EVENT_RBUTTONDOWN:
-        rightClickedPoints.append((x, y))
-        if len(rightClickedPoints) % 2 == 0:
-            lightLineSegments=calculate_light_lines(lightLineSegments,rightClickedPoints,isFirstFrame,firstFrame)
+        if(x > 50 and x < 200 and y > 50 and y < 100): #button 1
+            selectedOption = 1
+        elif(x > 250 and x < 400 and y > 50 and y < 100): #button 2
+            selectedOption = 2
+        elif (x > 450 and x < 600 and y > 50 and y < 100):  # button 3
+            selectedOption = 3
+        else: #Here we decide what function we should use(after checking which button is selected <-- )
+            if(selectedOption == 1):
+                clickedPoints.append((x, y))
+                if len(clickedPoints) % 2 == 0:
+                    roadLineSegments, carsGroupedByArr = calculate_segment_line_equations(roadLineSegments,
+                                                                                          carsGroupedByArr,
+                                                                                          clickedPoints, isFirstFrame,
+                                                                                          firstFrame)
+            elif(selectedOption == 2):
+                rightClickedPoints.append((x, y))
+                if len(rightClickedPoints) % 2 == 0:
+                    lightLineSegments = calculate_light_lines(lightLineSegments, rightClickedPoints, isFirstFrame, firstFrame)
+            elif(selectedOption == 3):
+                thirdClickedPoints.append((x, y))
+                draw_light_cricle(firstFrame)
 
 # Przypisanie obsługi zdarzeń myszy
 cv2.namedWindow('Traffic Tracking')
@@ -93,6 +115,31 @@ currentFrame = 0
 
 isRed = False
 
+def drawInterface(frame):
+    global selectedOption
+    cv2.rectangle(frame, (50, 50), (200, 100), (0, 0, 0), -1) #button 1
+    cv2.putText(frame, "Pasy ruchu", (60, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+    cv2.rectangle(frame, (250, 50), (400, 100), (0, 0, 0), -1) #button 2
+    cv2.putText(frame, "Linie swiatel", (260, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+    cv2.rectangle(frame, (450, 50), (600, 100), (0, 0, 0), -1) #button 3
+    cv2.putText(frame, "Sygnalizacja", (460, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+    match selectedOption:
+        case 1:
+            cv2.rectangle(frame, (50, 50), (200, 100), (0, 0, 255), 4) #red rectangle on button 1
+            cv2.rectangle(frame, (250, 50), (400, 100), (0, 0, 0), 4) #red rectangle on button 2 overwritten by black rectangle
+            cv2.rectangle(frame, (450, 50), (600, 100), (0, 0, 0), 4) #red rectangle on button 3 overwritten by black rectangle
+        case 2:
+            cv2.rectangle(frame, (250, 50), (400, 100), (0, 0, 255), 4) #red rectangle on button 2
+            cv2.rectangle(frame, (50, 50), (200, 100), (0, 0, 0), 4) #red rectangle on button 1 overwritten by black rectangle
+            cv2.rectangle(frame, (450, 50), (600, 100), (0, 0, 0), 4) #red rectangle on button 3 overwritten by black rectangle
+        case 3:
+            cv2.rectangle(frame, (450, 50), (600, 100), (0, 0, 255), 4) #red rectangle on button 3
+            cv2.rectangle(frame, (50, 50), (200, 100), (0, 0, 0), 4) #red rectangle on button 1 overwritten by black rectangle
+            cv2.rectangle(frame, (250, 50), (400, 100), (0, 0, 0), 4) #red rectangle on button 2 overwritten by black rectangle
+
 while cap.isOpened():
     success, frame = cap.read()
     if success:
@@ -100,13 +147,15 @@ while cap.isOpened():
             firstFrame = frame.copy()
             cv2.imshow("Traffic Tracking", firstFrame)
             while True:
+                drawInterface(firstFrame)
+                cv2.imshow("Traffic Tracking", firstFrame)
                 # Aby rozpocząć wideo, kliknij „d”
                 if cv2.waitKey(1) & 0xFF == ord('d'):
                     break
             isFirstFrame = False
 
         currentFrame += 1
-        results = model(frame, stream=True)
+        results = model(frame, stream=True, verbose=False)
         detections = np.empty((0, 5))
 
         for r in results:
@@ -123,7 +172,7 @@ while cap.isOpened():
         carCenters = {}
 
         # Wykrywanie modelu sygnalizacji świetlnej
-        lightResults = lightsModel(frame, stream=True)
+        lightResults = lightsModel(frame, stream=True, verbose=False) #stream do filmików, a verbose=False aby nie wyświetlać detekcje yolo w konsoli
 
         for lr in lightResults:
             boxes = lr.boxes
@@ -137,6 +186,7 @@ while cap.isOpened():
                     isRed = True
                 elif classNamesLights[cls] == "Traffic Light -Green-":
                     isRed = False
+                cvzone.cornerRect(frame, (x1, y1, w, h))
             cvzone.putTextRect(frame, f'Are the lights red? {isRed}', (50, 50), scale=2, thickness=2, offset=1, colorR="")
 
         for rt in resultsTracker:
@@ -169,6 +219,7 @@ while cap.isOpened():
 
         draw_segment_lines(frame,roadLineSegments)
         draw_light_lines(frame,lightLineSegments)
+        draw_light_cricle(frame)
         isLightEntered = False
         draw_lines_between_cars(frame, carCenters,carsGroupedByArr,CAR_LENGTH)
 
