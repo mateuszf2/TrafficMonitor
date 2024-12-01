@@ -15,7 +15,9 @@ from calculatingDistanceBetweenCars import draw_lines_between_cars
 from detectingLights import calculate_light_lines
 from detectingLights import draw_light_lines
 from detectingLights import check_if_enter_light_line
+from detectingLights import draw_light_circle
 from calculatingSpeed import check_for_break_in_detection
+from creatingInterface import drawInterface
 
 # Wykrywanie urządzenia CUDA
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -30,8 +32,8 @@ fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
 #videoPath = './ruch_uliczny.mp4'
-#videoPath = '../trafficMonitorVideos/VID_20241122_142222.mp4'
-videoPath = './Videos/VID_20241122_142222.mp4'
+videoPath = '../trafficMonitorVideos/VID_20241122_142222.mp4'
+#videoPath = './Videos/VID_20241122_142222.mp4'
 cap = cv2.VideoCapture(videoPath)
 
 classNames = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
@@ -54,7 +56,7 @@ tracker = Sort(max_age=150, min_hits=3, iou_threshold=0.2)
 
 # Tworzenie pliku wideo wyjściowego
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-out = cv2.VideoWriter('yolo.mp4', fourcc, 30, (1546, 866), isColor=True)
+out = cv2.VideoWriter('yolo.mp4', fourcc, 30, (1920, 1080), isColor=True)
 
 # Definicje zmiennych globalnych
 clickedPoints = []  # Punkty kliknięte przez użytkownika do definiowania pasów ruchu (button 1)
@@ -70,14 +72,10 @@ thirdClickedPoints = [] # Punkty kliknięte do definiowania położenia sygnaliz
 firstFrame = None  # Aby wyświetlić linie na pierwszej, zatrzymanej klatce
 isFirstFrame= True
 
-def draw_light_cricle(frame):
-    for i, (x, y) in enumerate(thirdClickedPoints):
-        cv2.circle(frame, (x, y), 6, (255, 0, 255), -1)
-        cv2.putText(frame, f"numer: {i}", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
 
 selectedOption = 1 #selectedOption = 1 BUTTON1 , selectedOption = 2 BUTTON2
 def mouse_callback(event, x, y, flags, param):
-    global roadLineSegments,carsGroupedByArr,lightLineSegments, selectedOption
+    global roadLineSegments,carsGroupedByArr,lightLineSegments, selectedOption, thirdClickedPoints
     if event == cv2.EVENT_LBUTTONDOWN:
         if(x > 50 and x < 200 and y > 50 and y < 100): #button 1
             selectedOption = 1
@@ -99,7 +97,7 @@ def mouse_callback(event, x, y, flags, param):
                     lightLineSegments = calculate_light_lines(lightLineSegments, rightClickedPoints, isFirstFrame, firstFrame)
             elif(selectedOption == 3):
                 thirdClickedPoints.append((x, y))
-                draw_light_cricle(firstFrame)
+                draw_light_circle(firstFrame,thirdClickedPoints)
 
 # Przypisanie obsługi zdarzeń myszy
 cv2.namedWindow('Traffic Tracking')
@@ -115,31 +113,6 @@ currentFrame = 0
 
 isRed = False
 
-def drawInterface(frame):
-    global selectedOption
-    cv2.rectangle(frame, (50, 50), (200, 100), (0, 0, 0), -1) #button 1
-    cv2.putText(frame, "Pasy ruchu", (60, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
-    cv2.rectangle(frame, (250, 50), (400, 100), (0, 0, 0), -1) #button 2
-    cv2.putText(frame, "Linie swiatel", (260, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
-    cv2.rectangle(frame, (450, 50), (600, 100), (0, 0, 0), -1) #button 3
-    cv2.putText(frame, "Sygnalizacja", (460, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
-    match selectedOption:
-        case 1:
-            cv2.rectangle(frame, (50, 50), (200, 100), (0, 0, 255), 4) #red rectangle on button 1
-            cv2.rectangle(frame, (250, 50), (400, 100), (0, 0, 0), 4) #red rectangle on button 2 overwritten by black rectangle
-            cv2.rectangle(frame, (450, 50), (600, 100), (0, 0, 0), 4) #red rectangle on button 3 overwritten by black rectangle
-        case 2:
-            cv2.rectangle(frame, (250, 50), (400, 100), (0, 0, 255), 4) #red rectangle on button 2
-            cv2.rectangle(frame, (50, 50), (200, 100), (0, 0, 0), 4) #red rectangle on button 1 overwritten by black rectangle
-            cv2.rectangle(frame, (450, 50), (600, 100), (0, 0, 0), 4) #red rectangle on button 3 overwritten by black rectangle
-        case 3:
-            cv2.rectangle(frame, (450, 50), (600, 100), (0, 0, 255), 4) #red rectangle on button 3
-            cv2.rectangle(frame, (50, 50), (200, 100), (0, 0, 0), 4) #red rectangle on button 1 overwritten by black rectangle
-            cv2.rectangle(frame, (250, 50), (400, 100), (0, 0, 0), 4) #red rectangle on button 2 overwritten by black rectangle
-
 while cap.isOpened():
     success, frame = cap.read()
     if success:
@@ -147,7 +120,7 @@ while cap.isOpened():
             firstFrame = frame.copy()
             cv2.imshow("Traffic Tracking", firstFrame)
             while True:
-                drawInterface(firstFrame)
+                drawInterface(firstFrame, selectedOption)
                 cv2.imshow("Traffic Tracking", firstFrame)
                 # Aby rozpocząć wideo, kliknij „d”
                 if cv2.waitKey(1) & 0xFF == ord('d'):
@@ -219,7 +192,7 @@ while cap.isOpened():
 
         draw_segment_lines(frame,roadLineSegments)
         draw_light_lines(frame,lightLineSegments)
-        draw_light_cricle(frame)
+        draw_light_circle(frame,thirdClickedPoints)
         isLightEntered = False
         draw_lines_between_cars(frame, carCenters,carsGroupedByArr,CAR_LENGTH)
 

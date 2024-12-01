@@ -39,3 +39,7 @@ def check_if_enter_light_line(cx, cy, id,lightLineSegments):
             carsHasCrossedLight[id] = True
             return True
     return False
+def draw_light_circle(frame, thirdClickedPoints):
+    for i, (x, y) in enumerate(thirdClickedPoints):
+        cv2.circle(frame, (x, y), 6, (255, 0, 255), -1)
+        cv2.putText(frame, f"numer: {i}", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
