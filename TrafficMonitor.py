@@ -1,8 +1,13 @@
+import threading
+
 import cv2
 import cvzone
 import math
 import numpy as np
 import torch
+
+import queue
+#from torch.multiprocessing import queue #nie wiem ktore queue importowac
 
 from sort import *
 from ultralytics import YOLO
@@ -34,7 +39,6 @@ fileLights = open('lightsData.txt', 'w')
 #videoPath = './ruch_uliczny.mp4'
 videoPath = '../trafficMonitorVideos/VID_20241122_142222.mp4'
 #videoPath = './Videos/VID_20241122_142222.mp4'
-cap = cv2.VideoCapture(videoPath)
 
 classNames = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
               "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
@@ -113,19 +117,41 @@ currentFrame = 0
 
 isRed = False
 
-while cap.isOpened():
-    success, frame = cap.read()
-    if success:
-        if isFirstFrame:
-            firstFrame = frame.copy()
-            cv2.imshow("Traffic Tracking", firstFrame)
-            while True:
-                drawInterface(firstFrame, selectedOption)
-                cv2.imshow("Traffic Tracking", firstFrame)
-                # Aby rozpocząć wideo, kliknij „d”
-                if cv2.waitKey(1) & 0xFF == ord('d'):
-                    break
-            isFirstFrame = False
+# Queues for frame sharing
+frameQueue = queue.Queue(maxsize=10)  # Limit size to prevent excessive memory use
+processedQueue = queue.Queue(maxsize=10)
+
+# Thread control variables
+stopThreads = False
+startProcessing = False
+
+frameCount=None
+def capture_thread(videoPath, frameQueue):
+    global stopThreads,startProcessing,frameCount
+    cap = cv2.VideoCapture(videoPath)
+    frameCount = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    print(f"Total frames in input video: {frameCount}")
+    while not stopThreads:
+        if startProcessing:
+            success, frame = cap.read()
+            if not success:
+                break
+            try:
+                frameQueue.put(frame,timeout=1)  # Use timeout to avoid hanging
+            except queue.Full:
+                continue  # Skip if the queue is full
+    cap.release()
+
+def processing_thread(frameQueue, processedQueue, model, tracker):
+    global stopThreads,currentFrame,isFirstFrame,isRed,clickedPoints,carsGroupedByArr,roadLineSegments
+    global trackIdBoolArray,rightClickedPoints,lightLineSegments,thirdClickedPoints,firstFrame
+    global lightsModel,fileLights,classNames,classNamesLights,CAR_LENGTH,carPositions,carSpeeds,lastSeenFrame,selectedOption
+
+    while not stopThreads:
+        try:
+            frame= frameQueue.get(timeout=1)  # Unpack frame and timestamp
+        except queue.Empty:
+            continue
 
         currentFrame += 1
         results = model(frame, stream=True, verbose=False)
@@ -145,14 +171,15 @@ while cap.isOpened():
         carCenters = {}
 
         # Wykrywanie modelu sygnalizacji świetlnej
-        lightResults = lightsModel(frame, stream=True, verbose=False) #stream do filmików, a verbose=False aby nie wyświetlać detekcje yolo w konsoli
+        lightResults = lightsModel(frame, stream=True,
+                                   verbose=False)  # stream do filmików, a verbose=False aby nie wyświetlać detekcje yolo w konsoli
 
         for lr in lightResults:
             boxes = lr.boxes
             for box in boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                w, h = x2 -x1, y2 - y1
-                conf = math.ceil((box.conf[0]*100)) / 100
+                w, h = x2 - x1, y2 - y1
+                conf = math.ceil((box.conf[0] * 100)) / 100
                 cls = int(box.cls[0])
 
                 if classNamesLights[cls] == "Traffic Light -Red-":
@@ -160,7 +187,8 @@ while cap.isOpened():
                 elif classNamesLights[cls] == "Traffic Light -Green-":
                     isRed = False
                 cvzone.cornerRect(frame, (x1, y1, w, h))
-            cvzone.putTextRect(frame, f'Are the lights red? {isRed}', (50, 50), scale=2, thickness=2, offset=1, colorR="")
+            cvzone.putTextRect(frame, f'Are the lights red? {isRed}', (50, 50), scale=2, thickness=2, offset=1,
+                               colorR="")
 
         for rt in resultsTracker:
             x1, y1, x2, y2, id = map(int, rt)
@@ -176,10 +204,11 @@ while cap.isOpened():
                 trackIdBoolArray.extend([False] * (id + 1 - len(trackIdBoolArray)))
 
             if not trackIdBoolArray[id]:
-                trackIdBoolArray,carsGroupedByArr=group_cars_by_roadLine(id, cx, cy,roadLineSegments,trackIdBoolArray,carsGroupedByArr)
+                trackIdBoolArray, carsGroupedByArr = group_cars_by_roadLine(id, cx, cy, roadLineSegments,
+                                                                            trackIdBoolArray, carsGroupedByArr)
 
-            check_for_break_in_detection(lastSeenFrame,id,currentFrame,carPositions,
-                                     cx,cy,carSpeeds,w,CAR_LENGTH,frame,x1,y1)
+            check_for_break_in_detection(lastSeenFrame, id, currentFrame, carPositions,
+                                         cx, cy, carSpeeds, w, CAR_LENGTH, frame, x1, y1)
 
             # Zaktualizuj ostatnio widzianą klatke i historie pozycji dla następnej klatki
             lastSeenFrame[id] = currentFrame
@@ -187,24 +216,72 @@ while cap.isOpened():
             if len(carPositions[id]) > 2:
                 carPositions[id].pop(0)
 
-            if check_if_enter_light_line(cx, cy, id,lightLineSegments):
+            if check_if_enter_light_line(cx, cy, id, lightLineSegments):
                 fileLights.write(f'{id} run through a red light? {isRed}\n')
 
-        draw_segment_lines(frame,roadLineSegments)
-        draw_light_lines(frame,lightLineSegments)
-        draw_light_circle(frame,thirdClickedPoints)
-        isLightEntered = False
-        draw_lines_between_cars(frame, carCenters,carsGroupedByArr,CAR_LENGTH)
+        draw_segment_lines(frame, roadLineSegments)
+        draw_light_lines(frame, lightLineSegments)
+        draw_light_circle(frame, thirdClickedPoints)
+        draw_lines_between_cars(frame, carCenters, carsGroupedByArr, CAR_LENGTH)
 
-        cv2.imshow("Traffic Tracking", frame)
-        out.write(frame)
+        # Add processed frame to the processed queue
+        if not processedQueue.full():
+            processedQueue.put(frame)  # Pass timestamp along
+            print(currentFrame)
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-    else:
-        break
 
-fileLights.close()
-cap.release()
-out.release()
-cv2.destroyAllWindows()
+def main():
+    global stopThreads, startProcessing, firstFrame
+    # Start threads
+    captureThreadObj = threading.Thread(target=capture_thread, args=(videoPath, frameQueue))
+    processingThreadObj = threading.Thread(target=processing_thread, args=(frameQueue, processedQueue, model, tracker))
+
+    captureThreadObj.start()
+    processingThreadObj.start()
+
+    # Initialize video capture for the first frame
+    cap = cv2.VideoCapture(videoPath)
+    success, firstFrame= cap.read()
+    cap.release()
+
+    if not success:
+        print("Error: Could not read the first frame.")
+
+
+    # cv2.imshow musza pracowac na tym samym wątku (w tym przypadku MainThread)
+    while not stopThreads:
+        if not startProcessing:  # In drawing mode
+            cv2.imshow("Traffic Tracking", firstFrame)
+            drawInterface(firstFrame,selectedOption)
+            key = cv2.waitKey(1)
+            if key == ord('d'):  # Start processing when 'd' is pressed
+                startProcessing = True
+            elif key == ord('q'):  # Quit
+                stopThreads = True
+                break
+        else:  # In processing mode
+            try:
+                frame = processedQueue.get(timeout=1)
+                cv2.imshow("Traffic Tracking", frame)
+                out.write(frame)
+            except queue.Empty:
+                continue
+
+            key = cv2.waitKey(1)
+            # Quit (Some of frames can be lost,once lost 3 frames and I was suprised why video has not ended)
+            if key == ord('q') or currentFrame==frameCount-5:
+                stopThreads = True
+                break
+
+    # Wait for threads to finish
+    captureThreadObj.join()
+    processingThreadObj.join()
+
+
+    fileLights.close()
+    out.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
+
