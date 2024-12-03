@@ -36,8 +36,8 @@ lightsModel = YOLO('lightsYolo.pt')
 fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
-#videoPath = './ruch_uliczny.mp4'
-videoPath = '../trafficMonitorVideos/VID_20241122_142222.mp4'
+videoPath = './ruch_uliczny.mp4'
+#videoPath = '../trafficMonitorVideos/VID_20241122_142222.mp4'
 #videoPath = './Videos/VID_20241122_142222.mp4'
 
 classNames = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
@@ -60,7 +60,7 @@ tracker = Sort(max_age=150, min_hits=3, iou_threshold=0.2)
 
 # Tworzenie pliku wideo wyjściowego
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-out = cv2.VideoWriter('yolo.mp4', fourcc, 30, (1920, 1080), isColor=True)
+out = cv2.VideoWriter('yolo.mp4', fourcc, 30, (1548,860), isColor=True)
 
 # Definicje zmiennych globalnych
 clickedPoints = []  # Punkty kliknięte przez użytkownika do definiowania pasów ruchu (button 1)
@@ -227,7 +227,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
         # Add processed frame to the processed queue
         if not processedQueue.full():
             processedQueue.put(frame)  # Pass timestamp along
-            print(currentFrame)
+            #print(currentFrame)
 
 
 def main():

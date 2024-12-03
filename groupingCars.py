@@ -3,6 +3,12 @@ import cv2
 def calculate_segment_line_equations(roadLineSegments,carsGroupedByArr,clickedPoints,isFirstFrame,firstFrame):
     for i in range(0, len(clickedPoints), 2):
         if i+1 < len(clickedPoints):
+            # Obojetnie z ktorej strony zaznaczamy pas
+            if clickedPoints[i][0]>clickedPoints[i+1][0]:
+                help=clickedPoints[i]
+                clickedPoints[i]=clickedPoints[i+1]
+                clickedPoints[i + 1]=help
+
             p1, p2 = clickedPoints[i], clickedPoints[i+1]
             if p1[0] != p2[0]:  # Unikaj dzielenia przez zero
                 a = (p2[1] - p1[1]) / (p2[0] - p1[0])
@@ -24,7 +30,7 @@ def group_cars_by_roadLine(trackId, cx, cy,roadLineSegments,trackIdBoolArray,car
     # Grupuje auta według najbliższego pasa ruchu
     for i, (a, b, p1, p2) in enumerate(roadLineSegments):
         # Sprawdza, czy punkt (cx, cy) jest blisko odcinka
-        if abs(cy - (a * cx + b)) < 10 and p1[0] - 20 <= cx <= p2[0] + 20:
+        if abs(cy - (a * cx + b)) < 10 and p1[0] - 10 <= cx <= p2[0] + 10:
             trackIdBoolArray[trackId] = True
             carsGroupedByArr[i].append(trackId)
             break
