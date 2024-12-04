@@ -36,9 +36,9 @@ lightsModel = YOLO('lightsYolo.pt')
 fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
-videoPath = './ruch_uliczny.mp4'
+#videoPath = './ruch_uliczny.mp4'
 #videoPath = '../trafficMonitorVideos/VID_20241122_142222.mp4'
-#videoPath = './Videos/VID_20241122_142222.mp4'
+videoPath = './Videos/VID_20241122_142222.mp4'
 
 classNames = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
               "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
@@ -98,7 +98,7 @@ def mouse_callback(event, x, y, flags, param):
             elif(selectedOption == 2):
                 rightClickedPoints.append((x, y))
                 if len(rightClickedPoints) % 2 == 0:
-                    lightLineSegments = calculate_light_lines(lightLineSegments, rightClickedPoints, isFirstFrame, firstFrame)
+                    lightLineSegments = calculate_light_lines(lightLineSegments, rightClickedPoints, isFirstFrame, firstFrame, idToColorLight)
             elif(selectedOption == 3):
                 thirdClickedPoints.append((x, y))
                 draw_light_circle(firstFrame,thirdClickedPoints)
@@ -142,6 +142,8 @@ def capture_thread(videoPath, frameQueue):
                 continue  # Skip if the queue is full
     cap.release()
 
+idToColorLight= defaultdict(str) #Domyślna wartość dla brakującego klucza to pusty string
+
 def processing_thread(frameQueue, processedQueue, model, tracker):
     global stopThreads,currentFrame,isFirstFrame,isRed,clickedPoints,carsGroupedByArr,roadLineSegments
     global trackIdBoolArray,rightClickedPoints,lightLineSegments,thirdClickedPoints,firstFrame
@@ -182,6 +184,13 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
                 conf = math.ceil((box.conf[0] * 100)) / 100
                 cls = int(box.cls[0])
 
+                for i, (x, y) in enumerate(thirdClickedPoints):
+                    if( (x1 < x < x1+w) and (y1 < y < y1+h) ):
+                        if classNamesLights[cls] == "Traffic Light -Red-":
+                            idToColorLight[i]= "red"
+                        elif classNamesLights[cls] == "Traffic Light -Green-":
+                            idToColorLight[i]= "green"
+
                 if classNamesLights[cls] == "Traffic Light -Red-":
                     isRed = True
                 elif classNamesLights[cls] == "Traffic Light -Green-":
@@ -189,6 +198,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
                 cvzone.cornerRect(frame, (x1, y1, w, h))
             cvzone.putTextRect(frame, f'Are the lights red? {isRed}', (50, 50), scale=2, thickness=2, offset=1,
                                colorR="")
+            print(idToColorLight)
 
         for rt in resultsTracker:
             x1, y1, x2, y2, id = map(int, rt)
@@ -220,7 +230,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
                 fileLights.write(f'{id} run through a red light? {isRed}\n')
 
         draw_segment_lines(frame, roadLineSegments)
-        draw_light_lines(frame, lightLineSegments)
+        draw_light_lines(frame, lightLineSegments, idToColorLight)
         draw_light_circle(frame, thirdClickedPoints)
         draw_lines_between_cars(frame, carCenters, carsGroupedByArr, CAR_LENGTH)
 
