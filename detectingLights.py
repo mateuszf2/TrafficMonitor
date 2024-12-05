@@ -1,7 +1,7 @@
 import cv2
 
+
 isLightEntered= False
-carsHasCrossedLight = {}
 def calculate_light_lines(lightLineSegments,rightClickedPoints,isFirstFrame,firstFrame,idToColorLight):
     lightLineSegments = []  # ZAPOMNIELIŚMY O CZYSZCZENIU TABLICY I DO STARTEJ TABLICY DODAWALIŚMY STARE WARTOŚCI PLUS NOWE I TAK CAŁY CZAS(CIĄG FIBONACIEGO SIĘ ZROBIŁ CZY COŚ XD)
     for i in range(0, len(rightClickedPoints), 2):
@@ -25,19 +25,19 @@ def draw_light_lines(frame,lightLineSegments,idToColorLight):
         middle = ((p1[0] + p2[0]) // 2, (p1[1] + p2[1]) // 2)
         cv2.putText(frame, f"numer: {i}", middle, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
 
-def check_if_enter_light_line(cx, cy, id,lightLineSegments):
-    global carsHasCrossedLight
+def check_if_enter_light_line(cx, cy, id,lightLineSegments, idToColorLight, carsHasCrossedLight):
     #carsHasCrossedLight.get(id, False) sprawdza czy w danym id jest True,
     # Jeśli nie byłoby w słowniku klucza o danym id to nie będzie błędu bo wtedy przyjmujemy domyślnie False dla takiego id
     if carsHasCrossedLight.get(id, False):
         return False
-    for a, b, p1, p2 in lightLineSegments:
+    for i, (a, b, p1, p2) in enumerate(lightLineSegments):
         # Sprawdza, czy punkt (cx, cy) jest blisko odcinka
-        if abs(cy - (a * cx + b)) < 10 and p1[0] <= cx <= p2[0]:
-            global isLightEntered
-            isLightEntered = True
-            carsHasCrossedLight[id] = True
-            return True
+        if abs(cy - (a * cx + b)) < 20 and p1[0] - 10 <= cx <= p2[0] + 10:
+            #global isLightEntered
+            #isLightEntered = True
+            if idToColorLight[i] == "red":
+                carsHasCrossedLight[id] = True
+                return True
     return False
 def draw_light_circle(frame, thirdClickedPoints):
     for i, (x, y) in enumerate(thirdClickedPoints):

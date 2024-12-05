@@ -5,6 +5,7 @@ import cvzone
 import math
 import numpy as np
 import torch
+import os
 
 import queue
 #from torch.multiprocessing import queue #nie wiem ktore queue importowac
@@ -38,7 +39,8 @@ fileLights = open('lightsData.txt', 'w')
 # Wczytanie wideo
 #videoPath = './ruch_uliczny.mp4'
 #videoPath = '../trafficMonitorVideos/VID_20241122_142222.mp4'
-videoPath = './Videos/VID_20241122_142222.mp4'
+#videoPath = './Videos/VID_20241122_143045.mp4'
+videoPath = './lightsLong.mkv'
 
 classNames = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
               "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
@@ -143,10 +145,11 @@ def capture_thread(videoPath, frameQueue):
     cap.release()
 
 idToColorLight= defaultdict(str) #Domyślna wartość dla brakującego klucza to pusty string
+carsHasCrossedLight = {}
 
 def processing_thread(frameQueue, processedQueue, model, tracker):
     global stopThreads,currentFrame,isFirstFrame,isRed,clickedPoints,carsGroupedByArr,roadLineSegments
-    global trackIdBoolArray,rightClickedPoints,lightLineSegments,thirdClickedPoints,firstFrame
+    global trackIdBoolArray,rightClickedPoints,lightLineSegments,thirdClickedPoints,firstFrame, carsHasCrossedLight
     global lightsModel,fileLights,classNames,classNamesLights,CAR_LENGTH,carPositions,carSpeeds,lastSeenFrame,selectedOption
 
     while not stopThreads:
@@ -196,9 +199,8 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
                 elif classNamesLights[cls] == "Traffic Light -Green-":
                     isRed = False
                 cvzone.cornerRect(frame, (x1, y1, w, h))
-            cvzone.putTextRect(frame, f'Are the lights red? {isRed}', (50, 50), scale=2, thickness=2, offset=1,
+            cvzone.putTextRect(frame, f'Are the lights red? {idToColorLight[0]}', (50, 50), scale=2, thickness=2, offset=1,
                                colorR="")
-            print(idToColorLight)
 
         for rt in resultsTracker:
             x1, y1, x2, y2, id = map(int, rt)
@@ -226,8 +228,17 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
             if len(carPositions[id]) > 2:
                 carPositions[id].pop(0)
 
-            if check_if_enter_light_line(cx, cy, id, lightLineSegments):
-                fileLights.write(f'{id} run through a red light? {isRed}\n')
+            #what happens after someone runsa a red light (photo + log info)
+            if check_if_enter_light_line(cx, cy, id, lightLineSegments, idToColorLight, carsHasCrossedLight):
+                fileLights.write(f'{id} run through a red light? {carsHasCrossedLight.get(id)}\n')
+                print(f"{id} przejechało na RED?? {carsHasCrossedLight.get(id)}")
+
+                cv2.rectangle(frame, (x1, y1), (x1 + w, y1 + h), (0, 0, 255), 4)
+
+                outputFolder= './ImagesRed'
+                os.makedirs(outputFolder, exist_ok=True)
+                cv2.imwrite(f'{outputFolder}/{id}RED.jpg', frame)
+
 
         draw_segment_lines(frame, roadLineSegments)
         draw_light_lines(frame, lightLineSegments, idToColorLight)
