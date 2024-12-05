@@ -6,6 +6,11 @@ def calculate_light_lines(lightLineSegments,rightClickedPoints,isFirstFrame,firs
     lightLineSegments = []  # ZAPOMNIELIŚMY O CZYSZCZENIU TABLICY I DO STARTEJ TABLICY DODAWALIŚMY STARE WARTOŚCI PLUS NOWE I TAK CAŁY CZAS(CIĄG FIBONACIEGO SIĘ ZROBIŁ CZY COŚ XD)
     for i in range(0, len(rightClickedPoints), 2):
         if i+1 < len(rightClickedPoints):
+            if rightClickedPoints[i][0] > rightClickedPoints[i+1][0]:
+                help= rightClickedPoints[i]
+                rightClickedPoints[i] = rightClickedPoints[i+1]
+                rightClickedPoints[i+1] = help
+
             p1, p2 = rightClickedPoints[i], rightClickedPoints[i+1]
             if p1[0] != p2[0]:  # Unikaj dzielenia przez zero
                 a = (p2[1] - p1[1]) / (p2[0] - p1[0])
