@@ -35,7 +35,7 @@ lightsModel = YOLO('yoloLight2.pt')
 fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
-#videoPath = './ruch_uliczny.mp4'
+#videoPath = '../trafficMonitorVideos/ruch_uliczny.mp4'
 videoPath = '../trafficMonitorVideos/VID_20241122_142222.mp4'
 #videoPath = './Videos/VID_20241122_143045.mp4'
 #videoPath = './lightsLong.mkv'
