@@ -6,7 +6,7 @@ def draw_lines_between_cars(frame, carCenters, carsGroupedByArr, CAR_LENGTH):
     # Rysuje linie tylko do samochodu znajdującego się bezpośrednio przed każdym autem
     for group in carsGroupedByArr:
         for i in range(len(group)):
-            id1 = group[i]
+            id1 = group[i][0]
             if id1 not in carCenters:
                 continue
 
@@ -16,7 +16,7 @@ def draw_lines_between_cars(frame, carCenters, carsGroupedByArr, CAR_LENGTH):
 
             # Find the closest car in front of the current car
             for j in range(len(group)):
-                id2 = group[j]
+                id2 = group[j][0]
                 if id2 == id1 or id2 not in carCenters:
                     continue
 

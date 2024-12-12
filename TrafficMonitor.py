@@ -22,6 +22,7 @@ from detectingLights import check_if_enter_light_line
 from detectingLights import draw_light_circle
 from calculatingSpeed import check_for_break_in_detection
 from creatingInterface import drawInterface
+from calculatingDriversReactionTime import calculate_reaction_time
 
 # Wykrywanie urządzenia CUDA
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -29,14 +30,14 @@ print(f"Urządzenie używane: {device}")
 
 # Ładowanie modelu YOLO
 model = YOLO("yolov8l.pt")
-lightsModel = YOLO('yoloLight2.pt')
+lightsModel = YOLO('lightsYolo.pt')
 
 # Plik do zapisywania które auto przejechało na jakim świetle
 fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
 #videoPath = '../trafficMonitorVideos/ruch_uliczny.mp4'
-videoPath = '../trafficMonitorVideos/VID_20241122_142222.mp4'
+videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
 #videoPath = './Videos/VID_20241122_143045.mp4'
 #videoPath = './lightsLong.mkv'
 
@@ -118,8 +119,6 @@ carSpeeds = {}
 lastSeenFrame = defaultdict(lambda: -1)  # -1 indicates the car has not been seen yet
 currentFrame = 0
 
-isRed = False
-
 # Queues for frame sharing
 frameQueue = queue.Queue(maxsize=10)  # Limit size to prevent excessive memory use
 processedQueue = queue.Queue(maxsize=10)
@@ -148,10 +147,14 @@ def capture_thread(videoPath, frameQueue):
 idToColorLight= defaultdict(str) #Domyślna wartość dla brakującego klucza to pusty string
 carsHasCrossedLight = {}
 
+previousLightStates = defaultdict(lambda: "Off")  # Default to "Off" for all lights
+lightGreenFrame = defaultdict(lambda: 0)  # Tracks the frame when the light turned green for each traffic light
+
 def processing_thread(frameQueue, processedQueue, model, tracker):
-    global stopThreads,currentFrame,isFirstFrame,isRed,clickedPoints,carsGroupedByArr,roadLineSegments
+    global stopThreads,currentFrame,isFirstFrame,clickedPoints,carsGroupedByArr,roadLineSegments
     global trackIdBoolArray,rightClickedPoints,lightLineSegments,thirdClickedPoints,firstFrame, carsHasCrossedLight
     global lightsModel,fileLights,classNames,classNamesLights,CAR_LENGTH,carPositions,carSpeeds,lastSeenFrame,selectedOption
+    global previousLightStates, lightGreenFrame
 
     while not stopThreads:
         try:
@@ -189,16 +192,25 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
                 cls = int(box.cls[0])
 
                 for i, (x, y) in enumerate(thirdClickedPoints):
-                    if( (x1 < x < x1+w) and (y1 < y < y1+h) ):
+                    if (x1 < x < x1 + w) and (y1 < y < y1 + h):
+                        # Update the idToColorLight dictionary with the current state
                         if classNamesLights[cls] == "Traffic Light -Red-":
-                            idToColorLight[i]= "red"
+                            idToColorLight[i] = "red"
                         elif classNamesLights[cls] == "Traffic Light -Green-":
-                            idToColorLight[i]= "green"
+                            idToColorLight[i] = "green"
+                        else:
+                            idToColorLight[i] = "off"
 
-                if classNamesLights[cls] == "Traffic Light -Red-":
-                    isRed = True
-                elif classNamesLights[cls] == "Traffic Light -Green-":
-                    isRed = False
+                        # Detect transitions by comparing the current state with the previous state
+                        if idToColorLight[i] != previousLightStates[i]:
+                            if previousLightStates[i] == "red" and idToColorLight[i] == "green":
+                                # Log the transition from red to green
+                                lightGreenFrame[i] = currentFrame
+                                print(f"Traffic light {i} turned green at frame {currentFrame}")
+
+                            # Update the previous state
+                            previousLightStates[i] = idToColorLight[i]
+
                 cvzone.cornerRect(frame, (x1, y1, w, h))
             cvzone.putTextRect(frame, f'Are the lights red? {idToColorLight[0]}', (50, 50), scale=2, thickness=2, offset=1,
                                colorR="")
@@ -207,7 +219,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
             x1, y1, x2, y2, id = map(int, rt)
             w, h = x2 - x1, y2 - y1
             cx, cy = x1 + w // 2, y1 + h // 2
-            color = (0, 255, 0) if any(id in group for group in carsGroupedByArr) else (255, 0, 255)
+            color = (0, 255, 0) if any(id == car[0] for group in carsGroupedByArr for car in group) else (255, 0, 255)
             cvzone.cornerRect(frame, (x1, y1, w, h), l=9, rt=2, colorR=color)
             cvzone.putTextRect(frame, f'{id}', (max(0, x1), max(35, y1)), scale=2, thickness=2, offset=1, colorR="")
 
@@ -228,6 +240,8 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
             carPositions[id].append((cx, cy))
             if len(carPositions[id]) > 2:
                 carPositions[id].pop(0)
+
+            calculate_reaction_time(id, cx, cy, carPositions, carsGroupedByArr, currentFrame,lightGreenFrame)
 
             #what happens after someone runsa a red light (photo + log info)
             if check_if_enter_light_line(cx, cy, id, lightLineSegments, idToColorLight, carsHasCrossedLight):
