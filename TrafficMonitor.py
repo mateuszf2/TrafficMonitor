@@ -149,9 +149,10 @@ carsHasCrossedLight = {}
 
 previousLightStates = defaultdict(lambda: "Off")  # Default to "Off" for all lights
 lightGreenFrame = defaultdict(lambda: 0)  # Tracks the frame when the light turned green for each traffic light
+carsInFirstFrame = set()
 
 def processing_thread(frameQueue, processedQueue, model, tracker):
-    global stopThreads,currentFrame,isFirstFrame,clickedPoints,carsGroupedByArr,roadLineSegments
+    global stopThreads,currentFrame,isFirstFrame,carsInFirstFrame,clickedPoints,carsGroupedByArr,roadLineSegments
     global trackIdBoolArray,rightClickedPoints,lightLineSegments,thirdClickedPoints,firstFrame, carsHasCrossedLight
     global lightsModel,fileLights,classNames,classNamesLights,CAR_LENGTH,carPositions,carSpeeds,lastSeenFrame,selectedOption
     global previousLightStates, lightGreenFrame
@@ -241,7 +242,10 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
             if len(carPositions[id]) > 2:
                 carPositions[id].pop(0)
 
-            calculate_reaction_time(id, cx, cy, carPositions, carsGroupedByArr, currentFrame,lightGreenFrame)
+            if currentFrame == 1:  # First frame processing
+                carsInFirstFrame.add(id)  # Add the car ID to the set
+
+            calculate_reaction_time(id, cx, cy, carPositions, carsGroupedByArr, currentFrame,lightGreenFrame,carsInFirstFrame)
 
             #what happens after someone runsa a red light (photo + log info)
             if check_if_enter_light_line(cx, cy, id, lightLineSegments, idToColorLight, carsHasCrossedLight):

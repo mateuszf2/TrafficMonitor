@@ -1,6 +1,8 @@
 import cv2
 
 def calculate_segment_line_equations(roadLineSegments,carsGroupedByArr,clickedPoints,isFirstFrame,firstFrame):
+    roadLineSegments=[]
+    carsGroupedByArr=[]
     for i in range(0, len(clickedPoints), 2):
         if i+1 < len(clickedPoints):
             # Obojetnie z ktorej strony zaznaczamy pas

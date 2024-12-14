@@ -7,8 +7,13 @@ reactionThreshold = 1  # Threshold for acceptable reaction time in seconds (adju
 def calculate_seconds_from_frames(timeTaken, frame_rate=30):
     return timeTaken / frame_rate
 
-def calculate_reaction_time(id ,cx,cy,carPositions,carsGroupedByArr,currentFrame,lightGreenFrame ):
+def calculate_reaction_time(id ,cx,cy,carPositions,carsGroupedByArr,currentFrame,lightGreenFrame,carsInFirstFrame ):
     global carStartTimes,reactionThreshold,carReactionWarnings
+
+    # Skip if the car is not in the initial frame
+    if id not in carsInFirstFrame:
+        return
+
     # Record when the car starts moving
     if carStartTimes[id] == -1:
         # Check if the car is moving by comparing the current position with the last frame's position
