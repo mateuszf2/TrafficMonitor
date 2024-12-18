@@ -5,7 +5,6 @@ import ctypes
 import cvzone
 import math
 import torch
-
 import queue
 
 from sort import *
@@ -24,6 +23,11 @@ from calculatingSpeed import check_for_break_in_detection
 from creatingInterface import drawInterface
 from calculatingDriversReactionTime import calculate_reaction_time
 
+import tkinter as tk
+from tkinter import simpledialog
+
+from database import insert_nameOfPlace, get_nameOfPlace
+
 # Wykrywanie urządzenia CUDA
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Urządzenie używane: {device}")
@@ -37,8 +41,8 @@ fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
 #videoPath = '../trafficMonitorVideos/ruch_uliczny.mp4'
-videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
-#videoPath = './Videos/VID_20241122_143045.mp4'
+#videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
+videoPath = './Videos/VID_20241122_143045.mp4'
 #videoPath = './lightsLong.mkv'
 
 # Explicitly set OpenCV to avoid scaling issues
@@ -269,9 +273,34 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
             processedQueue.put(frame)  # Pass timestamp along
             #print(currentFrame)
 
+#DIALOG WINDOW FOR INPUT DATA
+def get_basic_info():
+    root = tk.Tk()
+    root.withdraw()
+
+    crossroad_name = simpledialog.askstring("Informacje o skrzyżowaniu", "Podaj nazwę skrzyżowania:")
+    city_name = simpledialog.askstring("Informacje o skrzyżowaniu", "Podaj miasto:")
+
+    return crossroad_name, city_name
 
 def main():
     global stopThreads, startProcessing, firstFrame
+
+    crossroad_name, city_name = get_basic_info()
+    print(f"Skrzyżowanie: {crossroad_name}")
+    print(f"Miasto: {city_name}")
+
+    #Inserting data to nameofplace
+    insert_nameOfPlace(crossroad_name, city_name)
+    #Getting all data from table nameofplace
+    intersections = get_nameOfPlace()
+
+    if intersections:
+        for intersection in intersections:
+            print(f"ID: {intersection[0]}, Name: {intersection[1]}, City: {intersection[2]}")
+    else:
+        print("No data found.")
+
     # Start threads
     captureThreadObj = threading.Thread(target=capture_thread, args=(videoPath, frameQueue))
     processingThreadObj = threading.Thread(target=processing_thread, args=(frameQueue, processedQueue, model, tracker))
