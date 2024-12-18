@@ -1,4 +1,5 @@
 import threading
+from datetime import datetime
 
 import cv2
 import ctypes
@@ -27,6 +28,8 @@ import tkinter as tk
 from tkinter import simpledialog
 
 from database import insert_nameOfPlace, get_nameOfPlace
+from database import get_data_for_inserting_video,insert_video
+from database import insert_trafficLanes
 
 # Wykrywanie urządzenia CUDA
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -41,8 +44,8 @@ fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
 #videoPath = '../trafficMonitorVideos/ruch_uliczny.mp4'
-#videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
-videoPath = './Videos/VID_20241122_143045.mp4'
+videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
+#videoPath = './Videos/VID_20241122_143045.mp4'
 #videoPath = './lightsLong.mkv'
 
 # Explicitly set OpenCV to avoid scaling issues
@@ -155,6 +158,8 @@ previousLightStates = defaultdict(lambda: "Off")  # Default to "Off" for all lig
 lightGreenFrame = defaultdict(lambda: 0)  # Tracks the frame when the light turned green for each traffic light
 carsInFirstFrame = set()
 
+
+
 def processing_thread(frameQueue, processedQueue, model, tracker):
     global stopThreads,currentFrame,isFirstFrame,carsInFirstFrame,clickedPoints,carsGroupedByArr,roadLineSegments
     global trackIdBoolArray,rightClickedPoints,lightLineSegments,thirdClickedPoints,firstFrame, carsHasCrossedLight
@@ -262,6 +267,10 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
                 os.makedirs(outputFolder, exist_ok=True)
                 cv2.imwrite(f'{outputFolder}/{id}RED.jpg', frame)
 
+            # Save car to DB
+            if id in lastSeenFrame and currentFrame - lastSeenFrame[id] > 5:  # Example timeout for being "lost"
+                pass
+
 
         draw_segment_lines(frame, roadLineSegments)
         draw_light_lines(frame, lightLineSegments, idToColorLight)
@@ -283,8 +292,10 @@ def get_basic_info():
 
     return crossroad_name, city_name
 
+
 def main():
     global stopThreads, startProcessing, firstFrame
+    global clickedPoints
 
     crossroad_name, city_name = get_basic_info()
     print(f"Skrzyżowanie: {crossroad_name}")
@@ -300,6 +311,10 @@ def main():
             print(f"ID: {intersection[0]}, Name: {intersection[1]}, City: {intersection[2]}")
     else:
         print("No data found.")
+
+    idNameOfPlace = get_data_for_inserting_video(crossroad_name, city_name, intersections)
+    insert_video(idNameOfPlace, videoPath, datetime.now())
+
 
     # Start threads
     captureThreadObj = threading.Thread(target=capture_thread, args=(videoPath, frameQueue))
@@ -325,6 +340,8 @@ def main():
             key = cv2.waitKey(1)
             if key == ord('d'):  # Start processing when 'd' is pressed
                 startProcessing = True
+                insert_trafficLanes(clickedPoints, idNameOfPlace)
+
             elif key == ord('q'):  # Quit
                 stopThreads = True
                 break

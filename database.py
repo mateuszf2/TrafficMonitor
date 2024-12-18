@@ -72,3 +72,43 @@ def get_nameOfPlace():
             close_connection(connection, cursor)
 
     return intersections
+
+def get_data_for_inserting_video(crossroad_name,city_name,intersections):
+    for intersection in intersections:
+        if intersection[1]==crossroad_name and intersection[2]==city_name:
+            return intersection[0]
+
+
+def insert_video(idNameOfPlace, link, timeSet):
+    connection = create_connection()
+    cursor = None
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = "INSERT INTO video (id_nameOfPlace,link,timeSet) VALUES (%s,%s,%s);"
+            cursor.execute(query, (idNameOfPlace,link,timeSet))
+            connection.commit()
+            print("Data about video added successfully.")
+        except Error as e:
+            print(f"Error: {e}")
+        finally:
+            close_connection(connection, cursor)
+
+def insert_trafficLanes(clickedPoints, idNameOfPlace):
+    connection = create_connection()
+    cursor = None
+    if connection:
+        for i in range(0, len(clickedPoints), 2):
+            if i + 1 < len(clickedPoints):
+                p1, p2 = clickedPoints[i], clickedPoints[i + 1]
+                try:
+                    cursor = connection.cursor()
+                    query = "INSERT INTO trafficlanes (trafficLanesStartX,trafficLanesStartY,trafficLanesEndX,trafficLanesEndY,id_nameOfPlace) VALUES (%s,%s,%s,%s,%s);"
+                    cursor.execute(query, (p1[0],p1[1],p2[0],p2[1],idNameOfPlace))
+                    connection.commit()
+                    print("Data about trafficlane added successfully.")
+                except Error as e:
+                    print(f"Error: {e}")
+
+    close_connection(connection, cursor)
+
