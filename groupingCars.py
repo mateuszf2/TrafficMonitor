@@ -29,7 +29,7 @@ def draw_segment_lines(frame,roadLineSegments):
         cv2.line(frame, p1, p2, (0, 255, 0), 2)  # Zielona linia
 
 
-def group_cars_by_roadLine(trackId, cx, cy, roadLineSegments, trackIdBoolArray, carsGroupedByArr):
+def group_cars_by_roadLine(trackId, cx, cy, roadLineSegments, trackIdBoolArray, carsGroupedByArr, idVideo, listOfIdTrafficLanes):
     # Group cars according to the closest road line
     for i, (a, b, p1, p2) in enumerate(roadLineSegments):
         # Check if the point (cx, cy) is close to the segment

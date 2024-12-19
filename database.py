@@ -73,42 +73,87 @@ def get_nameOfPlace():
 
     return intersections
 
-def get_data_for_inserting_video(crossroad_name,city_name,intersections):
-    for intersection in intersections:
-        if intersection[1]==crossroad_name and intersection[2]==city_name:
-            return intersection[0]
-
 
 def insert_video(idNameOfPlace, link, timeSet):
     connection = create_connection()
     cursor = None
+    insertedId = None
     if connection:
         try:
             cursor = connection.cursor()
             query = "INSERT INTO video (id_nameOfPlace,link,timeSet) VALUES (%s,%s,%s);"
             cursor.execute(query, (idNameOfPlace,link,timeSet))
             connection.commit()
+
+            insertedId = cursor.lastrowid
             print("Data about video added successfully.")
         except Error as e:
             print(f"Error: {e}")
         finally:
             close_connection(connection, cursor)
+            return insertedId
 
 def insert_trafficLanes(clickedPoints, idNameOfPlace):
     connection = create_connection()
     cursor = None
+    listOfIdTrafficLanes = []
     if connection:
-        for i in range(0, len(clickedPoints), 2):
-            if i + 1 < len(clickedPoints):
-                p1, p2 = clickedPoints[i], clickedPoints[i + 1]
-                try:
+        try:
+            for i in range(0, len(clickedPoints), 2):
+                if i + 1 < len(clickedPoints):
+                    p1, p2 = clickedPoints[i], clickedPoints[i + 1]
+
                     cursor = connection.cursor()
                     query = "INSERT INTO trafficlanes (trafficLanesStartX,trafficLanesStartY,trafficLanesEndX,trafficLanesEndY,id_nameOfPlace) VALUES (%s,%s,%s,%s,%s);"
                     cursor.execute(query, (p1[0],p1[1],p2[0],p2[1],idNameOfPlace))
-                    connection.commit()
+
+                    listOfIdTrafficLanes.append(cursor.lastrowid)
                     print("Data about trafficlane added successfully.")
-                except Error as e:
-                    print(f"Error: {e}")
+            connection.commit()
+        except Error as e:
+            print(f"Error: {e}")
+            connection.rollback()
+
+    close_connection(connection, cursor)
+    return listOfIdTrafficLanes
+
+def insert_signalLights(rightClickedPoints, thirdClickedPoints, idNameOfPlace):
+    connection = create_connection()
+    cursor = None
+    if connection:
+            for i in range(0, len(rightClickedPoints), 2):
+                if i + 1 < len(rightClickedPoints):
+                    p1, p2 = rightClickedPoints[i], rightClickedPoints[i + 1]
+                    p3 = thirdClickedPoints[i // 2]
+                    try:
+                        cursor = connection.cursor()
+                        query = "INSERT INTO signalLights (stopLineStartX, stopLineStartY, stopLineEndX, stopLineEndY, signalX, signalY, id_nameOfPlace) VALUES (%s, %s, %s, %s, %s, %s, %s);"
+                        cursor.execute(query, (p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], idNameOfPlace))
+                        connection.commit()
+                        print("Data about signalLights added successfully.")
+                    except Error as e:
+                        print(f"Error: {e}")
+    close_connection(connection, cursor)
+
+def insert_car(idVideo, carsGroupedByArr, listOfIdTrafficLanes):
+    connection = create_connection()
+    cursor = None
+    if connection:
+        try:
+            for i, group in enumerate(carsGroupedByArr):
+                for car in group:
+                    id, cy = car
+                    #print(f"IdTrafficLane: {listOfIdTrafficLanes[i]} CarID: {id}")
+                    idTrafficLanes = listOfIdTrafficLanes[i]
+
+                    cursor = connection.cursor()
+                    query = "INSERT INTO car(id, id_video, ifRed, startTime, id_trafficLanes) VALUES(%s, %s, %s, %s, %s)"
+                    cursor.execute(query, (id, idVideo, False, 0, idTrafficLanes))
+            connection.commit()
+            print("Data about car added successfully.")
+        except Error as e:
+            print(f"Error: {e}")
+            connection.rollback()
 
     close_connection(connection, cursor)
 

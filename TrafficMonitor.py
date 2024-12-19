@@ -28,8 +28,10 @@ import tkinter as tk
 from tkinter import simpledialog
 
 from database import insert_nameOfPlace, get_nameOfPlace
-from database import get_data_for_inserting_video,insert_video
+from database import insert_video
 from database import insert_trafficLanes
+from database import insert_signalLights
+from database import insert_car
 
 # Wykrywanie urządzenia CUDA
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -44,8 +46,8 @@ fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
 #videoPath = '../trafficMonitorVideos/ruch_uliczny.mp4'
-videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
-#videoPath = './Videos/VID_20241122_143045.mp4'
+#videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
+videoPath = './Videos/VID_20241122_143045.mp4'
 #videoPath = './lightsLong.mkv'
 
 # Explicitly set OpenCV to avoid scaling issues
@@ -78,6 +80,7 @@ clickedPoints = []  # Punkty kliknięte przez użytkownika do definiowania pasó
 carsGroupedByArr = []
 roadLineSegments = []  # Segmenty dla każdego pasa jako lista punktów
 trackIdBoolArray = []
+carsInsertedIntoDB = set()
 
 rightClickedPoints = [] # Punkty kliknięte do definiowania pasów świateł (button 2)
 lightLineSegments = []
@@ -165,6 +168,9 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
     global trackIdBoolArray,rightClickedPoints,lightLineSegments,thirdClickedPoints,firstFrame, carsHasCrossedLight
     global lightsModel,fileLights,classNames,classNamesLights,CAR_LENGTH,carPositions,carSpeeds,lastSeenFrame,selectedOption
     global previousLightStates, lightGreenFrame
+    global idVideo
+    global listOfIdTrafficLanes
+    global carsInsertedIntoDB
 
     while not stopThreads:
         try:
@@ -233,6 +239,10 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
             cvzone.cornerRect(frame, (x1, y1, w, h), l=9, rt=2, colorR=color)
             cvzone.putTextRect(frame, f'{id}', (max(0, x1), max(35, y1)), scale=2, thickness=2, offset=1, colorR="")
 
+            #if id not in carsInsertedIntoDB:
+                #insert_car(id, idVideo, 21)
+                #carsInsertedIntoDB.add(id)
+
             carCenters[id] = ((cx, cy), w)
 
             if id >= len(trackIdBoolArray):
@@ -240,7 +250,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
 
             if not trackIdBoolArray[id]:
                 trackIdBoolArray, carsGroupedByArr = group_cars_by_roadLine(id, cx, cy, roadLineSegments,
-                                                                            trackIdBoolArray, carsGroupedByArr)
+                                                                            trackIdBoolArray, carsGroupedByArr, idVideo, listOfIdTrafficLanes)
 
             check_for_break_in_detection(lastSeenFrame, id, currentFrame, carPositions,
                                          cx, cy, carSpeeds, w, CAR_LENGTH, frame, x1, y1)
@@ -292,10 +302,18 @@ def get_basic_info():
 
     return crossroad_name, city_name
 
+#IMPORTANT FOR DATABASE INSERTIONS (FOREIGN KEYS!)
+idNameOfPlace = None
+idVideo = None
+listOfIdTrafficLanes = [] #Lista id TrafficLanes dla kolejnych pasów w roadLineSegments, jeżeli w roadLineSegment pas jest pod indexem 0 to jego id będzie w listOfIdTrafficLanes pod indeksem 0 itp.
 
 def main():
     global stopThreads, startProcessing, firstFrame
     global clickedPoints
+    global rightClickedPoints, thirdClickedPoints
+    global idNameOfPlace
+    global idVideo
+    global listOfIdTrafficLanes
 
     crossroad_name, city_name = get_basic_info()
     print(f"Skrzyżowanie: {crossroad_name}")
@@ -309,12 +327,12 @@ def main():
     if intersections:
         for intersection in intersections:
             print(f"ID: {intersection[0]}, Name: {intersection[1]}, City: {intersection[2]}")
+            if intersection[1]==crossroad_name and intersection[2]==city_name:
+                idNameOfPlace = intersection[0]
     else:
         print("No data found.")
 
-    idNameOfPlace = get_data_for_inserting_video(crossroad_name, city_name, intersections)
-    insert_video(idNameOfPlace, videoPath, datetime.now())
-
+    idVideo = insert_video(idNameOfPlace, videoPath, datetime.now())
 
     # Start threads
     captureThreadObj = threading.Thread(target=capture_thread, args=(videoPath, frameQueue))
@@ -340,7 +358,8 @@ def main():
             key = cv2.waitKey(1)
             if key == ord('d'):  # Start processing when 'd' is pressed
                 startProcessing = True
-                insert_trafficLanes(clickedPoints, idNameOfPlace)
+                listOfIdTrafficLanes = insert_trafficLanes(clickedPoints, idNameOfPlace)
+                insert_signalLights(rightClickedPoints, thirdClickedPoints, idNameOfPlace)
 
             elif key == ord('q'):  # Quit
                 stopThreads = True
@@ -362,6 +381,8 @@ def main():
     # Wait for threads to finish
     captureThreadObj.join()
     processingThreadObj.join()
+
+    insert_car(idVideo, carsGroupedByArr, listOfIdTrafficLanes)
 
 
     fileLights.close()
