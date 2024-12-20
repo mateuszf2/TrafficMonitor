@@ -31,7 +31,8 @@ from database import insert_nameOfPlace, get_nameOfPlace
 from database import insert_video
 from database import insert_trafficLanes
 from database import insert_signalLights
-from database import insert_car
+from database import insert_carGrouped
+from database import insert_carNotGrouped
 
 # Wykrywanie urządzenia CUDA
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -80,7 +81,7 @@ clickedPoints = []  # Punkty kliknięte przez użytkownika do definiowania pasó
 carsGroupedByArr = []
 roadLineSegments = []  # Segmenty dla każdego pasa jako lista punktów
 trackIdBoolArray = []
-carsInsertedIntoDB = set()
+allCarsId = set()
 
 rightClickedPoints = [] # Punkty kliknięte do definiowania pasów świateł (button 2)
 lightLineSegments = []
@@ -170,7 +171,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
     global previousLightStates, lightGreenFrame
     global idVideo
     global listOfIdTrafficLanes
-    global carsInsertedIntoDB
+    global allCarsId
 
     while not stopThreads:
         try:
@@ -239,18 +240,19 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
             cvzone.cornerRect(frame, (x1, y1, w, h), l=9, rt=2, colorR=color)
             cvzone.putTextRect(frame, f'{id}', (max(0, x1), max(35, y1)), scale=2, thickness=2, offset=1, colorR="")
 
-            #if id not in carsInsertedIntoDB:
-                #insert_car(id, idVideo, 21)
-                #carsInsertedIntoDB.add(id)
 
             carCenters[id] = ((cx, cy), w)
 
             if id >= len(trackIdBoolArray):
                 trackIdBoolArray.extend([False] * (id + 1 - len(trackIdBoolArray)))
 
+
             if not trackIdBoolArray[id]:
-                trackIdBoolArray, carsGroupedByArr = group_cars_by_roadLine(id, cx, cy, roadLineSegments,
-                                                                            trackIdBoolArray, carsGroupedByArr, idVideo, listOfIdTrafficLanes)
+                trackIdBoolArray, carsGroupedByArr, allCarsId = group_cars_by_roadLine(id, cx, cy, roadLineSegments,
+                                                                            trackIdBoolArray, carsGroupedByArr, allCarsId)
+
+            if not trackIdBoolArray[id] and id not in allCarsId:
+                allCarsId.add(id)
 
             check_for_break_in_detection(lastSeenFrame, id, currentFrame, carPositions,
                                          cx, cy, carSpeeds, w, CAR_LENGTH, frame, x1, y1)
@@ -314,6 +316,7 @@ def main():
     global idNameOfPlace
     global idVideo
     global listOfIdTrafficLanes
+    global allCarsId
 
     crossroad_name, city_name = get_basic_info()
     print(f"Skrzyżowanie: {crossroad_name}")
@@ -382,8 +385,10 @@ def main():
     captureThreadObj.join()
     processingThreadObj.join()
 
-    insert_car(idVideo, carsGroupedByArr, listOfIdTrafficLanes)
-
+    insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes)
+    insert_carNotGrouped(idVideo, allCarsId)
+    for carId in allCarsId:
+        print(f"{carId}")
 
     fileLights.close()
     out.release()
