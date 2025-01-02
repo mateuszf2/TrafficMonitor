@@ -33,6 +33,7 @@ from database import insert_trafficLanes
 from database import insert_signalLights
 from database import insert_carGrouped
 from database import insert_carNotGrouped
+from database import insert_speedsOfCars
 
 # Wykrywanie urządzenia CUDA
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -124,7 +125,7 @@ cv2.setMouseCallback('Traffic Tracking', mouse_callback)
 
 #  Zdefiniuj słownik do przechowywania poprzednich pozycji ramek dla każdego pojazdu
 carPositions = defaultdict(list)
-carSpeeds = {}
+carSpeeds = defaultdict(list)
 
 # Słownik do przechowywania ostatniej klatki, w której wykryto każdy samochód
 lastSeenFrame = defaultdict(lambda: -1)  # -1 indicates the car has not been seen yet
@@ -318,7 +319,7 @@ def main():
     global idNameOfPlace
     global idVideo
     global listOfIdTrafficLanes
-    global allCarsId,carStartTimes
+    global allCarsId,carStartTimes,carSpeeds
 
     crossroad_name, city_name = get_basic_info()
     print(f"Skrzyżowanie: {crossroad_name}")
@@ -389,6 +390,8 @@ def main():
 
     insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTimes)
     insert_carNotGrouped(idVideo, allCarsId)
+    insert_speedsOfCars(idVideo,carSpeeds)
+
     for carId in allCarsId:
         print(f"{carId}")
 

@@ -31,7 +31,6 @@ def check_for_break_in_detection(lastSeenFrame,id,currentFrame,carPositions,
         # Zresetuj historię prędkości, jeśli samochód był niewidoczny przez zbyt wiele klatek
         speedHistory[id] = []  # Wyczyść historię prędkości, aby uniknąć skoku
         carPositions[id] = [(cx, cy)]  # Zresetuj historię pozycji
-        carSpeeds[id] = 0  # Zresetuj wyświetlaną prędkość
     else:
         # Obliczenie normalnej prędkości, jeśli wykrywanie jest spójne
         if len(carPositions[id]) > 0:
@@ -46,9 +45,12 @@ def check_for_break_in_detection(lastSeenFrame,id,currentFrame,carPositions,
                 speedHistory[id].pop(0)
 
             smoothedSpeedKph = moving_average(speedHistory[id])
-            carSpeeds[id] = smoothedSpeedKph
 
             # Wyświetl wygładzoną prędkość na klatce
             speedText = f"{smoothedSpeedKph:.2f} km/h"
             cv2.putText(frame, speedText, (x1, y1 - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+
+            # To database adding
+            if currentFrame%30==0:
+                carSpeeds[id].append(smoothedSpeedKph)
 

@@ -162,20 +162,42 @@ def insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTi
     close_connection(connection, cursor)
 
 def insert_carNotGrouped(idVideo, allCarsId):
-        connection = create_connection()
-        cursor = None
-        if connection:
-            try:
-                for carId in allCarsId:
+    connection = create_connection()
+    cursor = None
+    if connection:
+        try:
+            for carId in allCarsId:
+                cursor = connection.cursor()
+
+                query = "INSERT INTO car(id, id_video) VALUES(%s, %s)"
+                cursor.execute(query, (carId, idVideo))
+            connection.commit()
+            print("Data about car added successfully.")
+        except Error as e:
+            print(f"Error: {e}")
+            connection.rollback()
+
+    close_connection(connection, cursor)
+
+def insert_speedsOfCars(idVideo,carSpeeds):
+    connection = create_connection()
+    cursor = None
+    if connection:
+        try:
+            # Iterate through the defaultdict
+            for carId, speeds in carSpeeds.items():
+                second=0
+                for speed in speeds:
                     cursor = connection.cursor()
+                    second+=1
+                    query = "INSERT INTO speedOfCar(id_car, id_video,secondOfVideo,speed) VALUES(%s,%s,%s,%s)"
+                    cursor.execute(query, (carId, idVideo,second,speed))
 
-                    query = "INSERT INTO car(id, id_video) VALUES(%s, %s)"
-                    cursor.execute(query, (carId, idVideo))
-                connection.commit()
-                print("Data about car added successfully.")
-            except Error as e:
-                print(f"Error: {e}")
-                connection.rollback()
+            connection.commit()
+            print("Data about cars speeds added successfully.")
+        except Error as e:
+            print(f"Error: {e}")
+            connection.rollback()
 
-        close_connection(connection, cursor)
+    close_connection(connection, cursor)
 
