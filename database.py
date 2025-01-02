@@ -135,7 +135,7 @@ def insert_signalLights(rightClickedPoints, thirdClickedPoints, idNameOfPlace):
                         print(f"Error: {e}")
     close_connection(connection, cursor)
 
-def insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes):
+def insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTimes):
     connection = create_connection()
     cursor = None
     if connection:
@@ -147,8 +147,12 @@ def insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes):
                     idTrafficLanes = listOfIdTrafficLanes[i]
 
                     cursor = connection.cursor()
-                    query = "INSERT INTO car(id, id_video, id_trafficLanes) VALUES(%s, %s, %s)"
-                    cursor.execute(query, (id, idVideo, idTrafficLanes))
+                    if carStartTimes[id]!=-1:
+                        query = "INSERT INTO car(id, id_video, id_trafficLanes,startTime) VALUES(%s, %s, %s,%s)"
+                        cursor.execute(query, (id, idVideo, idTrafficLanes,carStartTimes[id]))
+                    else:
+                        query = "INSERT INTO car(id, id_video, id_trafficLanes) VALUES(%s, %s, %s)"
+                        cursor.execute(query, (id, idVideo, idTrafficLanes))
             connection.commit()
             print("Data about car added successfully.")
         except Error as e:
@@ -164,9 +168,9 @@ def insert_carNotGrouped(idVideo, allCarsId):
             try:
                 for carId in allCarsId:
                     cursor = connection.cursor()
+
                     query = "INSERT INTO car(id, id_video) VALUES(%s, %s)"
                     cursor.execute(query, (carId, idVideo))
-
                 connection.commit()
                 print("Data about car added successfully.")
             except Error as e:

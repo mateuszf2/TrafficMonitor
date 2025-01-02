@@ -47,8 +47,8 @@ fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
 #videoPath = '../trafficMonitorVideos/ruch_uliczny.mp4'
-#videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
-videoPath = './Videos/VID_20241122_143045.mp4'
+videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
+#videoPath = './Videos/VID_20241122_143045.mp4'
 #videoPath = './lightsLong.mkv'
 
 # Explicitly set OpenCV to avoid scaling issues
@@ -161,6 +161,7 @@ carsHasCrossedLight = {}
 previousLightStates = defaultdict(lambda: "Off")  # Default to "Off" for all lights
 lightGreenFrame = defaultdict(lambda: 0)  # Tracks the frame when the light turned green for each traffic light
 carsInFirstFrame = set()
+carStartTimes = defaultdict(lambda: -1)
 
 
 
@@ -172,6 +173,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
     global idVideo
     global listOfIdTrafficLanes
     global allCarsId
+    global carStartTimes
 
     while not stopThreads:
         try:
@@ -266,7 +268,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
             if currentFrame == 1:  # First frame processing
                 carsInFirstFrame.add(id)  # Add the car ID to the set
 
-            calculate_reaction_time(id, cx, cy, carPositions, carsGroupedByArr, currentFrame,lightGreenFrame,carsInFirstFrame)
+            calculate_reaction_time(id, cx, cy, carPositions, carsGroupedByArr, currentFrame,lightGreenFrame,carsInFirstFrame,carStartTimes)
 
             #what happens after someone runsa a red light (photo + log info)
             if check_if_enter_light_line(cx, cy, id, lightLineSegments, idToColorLight, carsHasCrossedLight):
@@ -316,7 +318,7 @@ def main():
     global idNameOfPlace
     global idVideo
     global listOfIdTrafficLanes
-    global allCarsId
+    global allCarsId,carStartTimes
 
     crossroad_name, city_name = get_basic_info()
     print(f"Skrzyżowanie: {crossroad_name}")
@@ -385,7 +387,7 @@ def main():
     captureThreadObj.join()
     processingThreadObj.join()
 
-    insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes)
+    insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTimes)
     insert_carNotGrouped(idVideo, allCarsId)
     for carId in allCarsId:
         print(f"{carId}")
