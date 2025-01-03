@@ -201,3 +201,26 @@ def insert_speedsOfCars(idVideo,carSpeeds):
 
     close_connection(connection, cursor)
 
+def insert_distancesBetweenCars(idVideo,distancesBetweenCars):
+    connection = create_connection()
+    cursor = None
+    if connection:
+        try:
+            # Iterate through the defaultdict
+            for (carId1,carId2), distances in distancesBetweenCars.items():
+                second=0
+                for distance in distances:
+                    cursor = connection.cursor()
+                    second+=1
+                    query = "INSERT INTO distanceofcar(id_car1,id_car2, id_video1,id_video2,secondOfVideo,length) VALUES(%s,%s,%s,%s,%s,%s)"
+                    cursor.execute(query, (carId1,carId2, idVideo,idVideo, second,distance))
+
+            connection.commit()
+            print("Data about distances between cars added successfully.")
+        except Error as e:
+            print(f"Error: {e}")
+            connection.rollback()
+
+    close_connection(connection, cursor)
+
+

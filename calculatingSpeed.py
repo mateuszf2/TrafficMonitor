@@ -48,7 +48,7 @@ def check_for_break_in_detection(lastSeenFrame,id,currentFrame,carPositions,
 
             # Wyświetl wygładzoną prędkość na klatce
             speedText = f"{smoothedSpeedKph:.2f} km/h"
-            cv2.putText(frame, speedText, (x1, y1 - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+            cv2.putText(frame, speedText, (x1, y1 - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
 
             # To database adding
             if currentFrame%30==0:

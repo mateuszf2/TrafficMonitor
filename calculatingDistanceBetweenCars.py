@@ -1,8 +1,10 @@
 import cv2
 import math
 
+def draw_lines_between_cars(frame, carCenters, carsGroupedByArr, CAR_LENGTH,distancesBetweenCars,currentFrame):
+    # Reset the processedPairs set for each frame
+    processedPairs = set()
 
-def draw_lines_between_cars(frame, carCenters, carsGroupedByArr, CAR_LENGTH):
     # Rysuje linie tylko do samochodu znajdującego się bezpośrednio przed każdym autem
     for group in carsGroupedByArr:
         for i in range(len(group)):
@@ -32,24 +34,35 @@ def draw_lines_between_cars(frame, carCenters, carsGroupedByArr, CAR_LENGTH):
             if closest_car_id:
                 (cx2, cy2), w2 = carCenters[closest_car_id]
 
-                # Najpierw uśredniamy szerokość prostokąta auta, czyli jego długość w pixelach
-                avgWidthCar = (w1 + w2) / 2
-                # Następnie przeliczamy ile jeden metr ma pixeli
-                pxToOneMeter = avgWidthCar / CAR_LENGTH
+                # Ensure the pair is processed in a consistent order
+                car_pair = tuple(sorted([id1, closest_car_id]))
+                if car_pair in processedPairs:
+                    continue  # Skip if the pair is already processed
+                else:
+                    processedPairs.add(car_pair)
 
-                # Rysowanie linii między samochodami
-                cv2.line(frame, (cx1, cy1), (cx2, cy2), (255, 255, 255), 2)
+                    # Najpierw uśredniamy szerokość prostokąta auta, czyli jego długość w pixelach
+                    avgWidthCar = (w1 + w2) / 2
+                    # Następnie przeliczamy ile jeden metr ma pixeli
+                    pxToOneMeter = avgWidthCar / CAR_LENGTH
 
-                # Obliczanie punktu, w którym umieścimy tekst (pośrodku linii)
-                midX = int((cx1 + cx2) / 2)
-                midY = int((cy1 + cy2) / 2)
+                    # Rysowanie linii między samochodami
+                    cv2.line(frame, (cx1, cy1), (cx2, cy2), (255, 255, 255), 2)
 
-                text = f"{closest_distance / pxToOneMeter:.2f} m"
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                fontScale = 0.5
-                fontThickness = 1
-                textSize = cv2.getTextSize(text, font, fontScale, fontThickness)[0]
-                textX = midX - textSize[0] // 2  # Wyśrodkowanie tekstu
-                textY = midY - 10  # Ustawienie tekstu trochę nad linią
+                    # Obliczanie punktu, w którym umieścimy tekst (pośrodku linii)
+                    midX = int((cx1 + cx2) / 2)
+                    midY = int((cy1 + cy2) / 2)
 
-                cv2.putText(frame, text, (textX, textY), font, fontScale, (255, 255, 255), fontThickness)
+                    distance=closest_distance / pxToOneMeter
+                    text = f"{distance:.2f} m"
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    fontScale = 0.5
+                    fontThickness = 1
+                    textSize = cv2.getTextSize(text, font, fontScale, fontThickness)[0]
+                    textX = midX - textSize[0] // 2  # Wyśrodkowanie tekstu
+                    textY = midY - 10  # Ustawienie tekstu trochę nad linią
+
+                    cv2.putText(frame, text, (textX, textY), font, fontScale, (255, 255, 255), fontThickness)
+
+                    if currentFrame%30==0:
+                        distancesBetweenCars[(id1,closest_car_id)].append(distance)

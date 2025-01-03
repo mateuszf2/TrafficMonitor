@@ -34,6 +34,7 @@ from database import insert_signalLights
 from database import insert_carGrouped
 from database import insert_carNotGrouped
 from database import insert_speedsOfCars
+from database import insert_distancesBetweenCars
 
 # Wykrywanie urządzenia CUDA
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -126,6 +127,7 @@ cv2.setMouseCallback('Traffic Tracking', mouse_callback)
 #  Zdefiniuj słownik do przechowywania poprzednich pozycji ramek dla każdego pojazdu
 carPositions = defaultdict(list)
 carSpeeds = defaultdict(list)
+distancesBetweenCars = defaultdict(list)
 
 # Słownik do przechowywania ostatniej klatki, w której wykryto każdy samochód
 lastSeenFrame = defaultdict(lambda: -1)  # -1 indicates the car has not been seen yet
@@ -174,7 +176,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
     global idVideo
     global listOfIdTrafficLanes
     global allCarsId
-    global carStartTimes
+    global carStartTimes,distancesBetweenCars
 
     while not stopThreads:
         try:
@@ -290,7 +292,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
         draw_segment_lines(frame, roadLineSegments)
         draw_light_lines(frame, lightLineSegments, idToColorLight)
         draw_light_circle(frame, thirdClickedPoints)
-        draw_lines_between_cars(frame, carCenters, carsGroupedByArr, CAR_LENGTH)
+        draw_lines_between_cars(frame, carCenters, carsGroupedByArr, CAR_LENGTH,distancesBetweenCars,currentFrame)
 
         # Add processed frame to the processed queue
         if not processedQueue.full():
@@ -391,6 +393,7 @@ def main():
     insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTimes)
     insert_carNotGrouped(idVideo, allCarsId)
     insert_speedsOfCars(idVideo,carSpeeds)
+    insert_distancesBetweenCars(idVideo,distancesBetweenCars)
 
     for carId in allCarsId:
         print(f"{carId}")
