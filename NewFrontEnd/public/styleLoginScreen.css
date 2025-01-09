@@ -1,0 +1,105 @@
+/* Globalne style dla całej strony */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    flex-direction: column;
+    background: linear-gradient(45deg, #f0f8ff, #dde8f1);
+}
+
+/* Nagłówek strony */
+header {
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Styl formularza logowania */
+.login-container {
+    background-color: #F4F8FD;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+    box-sizing: border-box;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    transition: margin 0.3s ease;
+}
+
+.login-container header {
+    text-align: center;
+    font-size: 1.5em;
+    margin-bottom: 10px;
+}
+
+/* Styl pól w formularzu */
+.field {
+    margin-bottom: 15px;
+}
+
+.field label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.field input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.field input[type="submit"] {
+    background-color: #005ea5;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease, transform 0.3s ease; /* Dodajemy animację */
+}
+
+.field input[type="submit"]:hover {
+    background-color: #00427a;
+    transform: scale(1.05); /* Powiększenie przycisku na hover */
+}
+
+/* Styl stopki z linkami */
+.footer-links {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.footer-links a {
+    color: #005ea5;
+    text-decoration: none;
+    margin: 0 10px;
+    font-size: 14px;
+}
+
+.footer-links a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .main-container {
+        flex-direction: column;
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: none;
+    }
+
+    .image-container {
+        display: none; /* Ukryj obrazek na małych ekranach */
+    }
+}

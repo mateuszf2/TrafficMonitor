@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Ruchu Drogowego</title>
+    <link rel="stylesheet" href="styleLoginScreen.css"> 
+</head>
+<body>
+    <div class="main-container">
+        <div class="login-container">
+            <header>Zaloguj się do usługi</header>
+            <form action="/login" method="post">
+                <div class="field">
+                    <label for="idEmployee">ID Pracownika</label>
+                    <input type="text" name="idEmployee" id="idEmployee" required>
+                </div>
+                <div class="field">
+                    <label for="password">Hasło</label>
+                    <input type="password" name="password" id="password" required>
+                </div>
+                <div class="field">
+                    <input type="submit" name="submit" value="Zaloguj się">
+                </div>
+            </form>
+            <div class="footer-links">
+                <a href="#">Polityka cookies</a>
+                <a href="#">Warunki korzystania</a>
+                <a href="#">Klauzula RODO</a>
+                <a href="#">Deklaracja dostępności</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

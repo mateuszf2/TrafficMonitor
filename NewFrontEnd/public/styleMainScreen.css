@@ -1,0 +1,206 @@
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    font-family: 'poppins', Arial;
+}
+
+/* TOPBAR SECTION */
+
+.topbar{
+    position: fixed;
+    background-color: #fff;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.08);
+    width: 100%;
+    height: 60px;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: 2fr 10fr 0.4fr 1fr;
+    align-items: center;
+    z-index: 1;
+}
+
+/* SIDEBAR SECTION */
+.sidebar{
+    position: fixed;
+    top: 60px;
+    width: 260px;
+    height: calc(100% - 60px);
+    /*background-color: #F4F8FD;*/
+    background-color: #005EA5;
+    overflow-x: hidden;
+}
+
+.sidebar ul{
+    margin-top: 20px; 
+}
+
+.sidebar ul li{
+    width: 100%;
+    list-style: none;
+}
+
+.sidebar ul li a{
+    width: 100%;
+    text-decoration: none;
+    color: #FFF;
+    height: 60px;
+    display: flex;
+    align-items: center;
+}
+
+.sidebar ul li a i{
+    min-width: 60px;
+    font-size: 24px;
+    text-align: center;
+}
+
+.main {
+    position: absolute;
+    top: 60px;
+    width: calc(100% - 260px);
+    left: 260px;
+    min-height: calc(100vh - 60px);
+    /*background: #f5f5f5;*/
+    background: linear-gradient(45deg #f0f8ff, #dde8f1);
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-gap: 20px;
+    padding: 35px 20px;
+}
+
+.cards .card {
+    padding: 20px;
+    background: #FFF;
+    border-radius: 10px;
+    box-shadow: 0 7px 25px rgba(0, 0, 0, 0.08);
+}
+
+.cards .card select {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.cards .card button {
+    padding: 10px 20px;
+    background-color: #005EA5;
+    color: #FFF;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.cards .card button:hover {
+    background-color: #004b8c;
+}
+
+/* STYLE FOR STATS DISPLAY */
+.stats {
+    padding: 20px;
+    background: #FFF;
+    border-radius: 10px;
+    box-shadow: 0 7px 25px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    min-height: 300px; /* Zwiększenie wysokości sekcji ze statystykami */
+}
+
+.stats #stats-display {
+    margin-top: 20px;
+    padding: 20px;
+    background-color: #f7f7f7;
+    border-radius: 10px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+/* STYLE FOR CHARTS */
+.charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 20px;
+    padding: 20px;
+}
+
+.chart {
+    background: #FFF;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 7px 25px rgba(0, 0, 0, 0.08);
+    width: 100%;
+}
+
+.chart canvas {
+    width: 100%;
+    height: auto;
+}
+
+label {
+    display: block;
+    margin: 10px 0 5px;
+}
+
+select, input{
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    border-radius: 5px; 
+    border: 1px solid #ddd;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1); 
+}
+
+/* Stylowanie textarea */
+textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    resize: none; 
+    transition: height 0.2s ease; 
+}
+
+button {
+    width: 120px;
+    height: 40px;
+    background-color: #005ea5;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); 
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+button:hover {
+    background-color: #00427a;
+    transform: translateY(-2px); 
+}
+
+/* RESPONSIVE STYLES */
+@media (max-width: 1115px) {
+    .sidebar {
+        width: 60px;
+    }
+    .main {
+        left: 60px;
+        width: calc(100% - 60px)
+    }
+}
+
+@media (max-width: 880px) {
+    .cards {
+        grid-template-columns: 1fr;
+    }
+    .charts {
+        grid-template-columns: 1fr;
+    }
+}
