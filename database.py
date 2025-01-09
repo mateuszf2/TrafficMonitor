@@ -223,4 +223,40 @@ def insert_distancesBetweenCars(idVideo,distancesBetweenCars):
 
     close_connection(connection, cursor)
 
+def get_signallights(name, city):
+    connection = create_connection()
+    cursor = None
+    #Data from table nameOfPlace that stores information about intersections in cities (name of intersection, city)
+    intersections = None
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = "select * from signallights s join nameofplace n on s.id_nameOfPlace=n.id where name=%s and city=%s;"
+            cursor.execute(query, (name,city))
+            signallights = cursor.fetchall()
+        except Error as e:
+            print(f"Error: {e}")
+        finally:
+            close_connection(connection, cursor)
+
+    return signallights
+
+def get_trafficlanes(name, city):
+    connection = create_connection()
+    cursor = None
+    #Data from table nameOfPlace that stores information about intersections in cities (name of intersection, city)
+    intersections = None
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = "select * from trafficlanes t join nameofplace n on t.id_nameOfPlace=n.id where name=%s and city=%s;"
+            cursor.execute(query, (name,city))
+            trafficlanes = cursor.fetchall()
+        except Error as e:
+            print(f"Error: {e}")
+        finally:
+            close_connection(connection, cursor)
+
+    return trafficlanes
+
 

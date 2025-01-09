@@ -8,6 +8,8 @@ import math
 import torch
 import queue
 
+from contourpy.util.data import simple
+
 from sort import *
 from ultralytics import YOLO
 from collections import defaultdict
@@ -26,6 +28,7 @@ from calculatingDriversReactionTime import calculate_reaction_time
 
 import tkinter as tk
 from tkinter import simpledialog
+from tkinter import messagebox
 
 from database import insert_nameOfPlace, get_nameOfPlace
 from database import insert_video
@@ -35,6 +38,8 @@ from database import insert_carGrouped
 from database import insert_carNotGrouped
 from database import insert_speedsOfCars
 from database import insert_distancesBetweenCars
+from database import get_signallights
+from database import get_trafficlanes
 
 # Wykrywanie urządzenia CUDA
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -49,8 +54,8 @@ fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
 #videoPath = '../trafficMonitorVideos/ruch_uliczny.mp4'
-videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
-#videoPath = './Videos/VID_20241122_143045.mp4'
+#videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
+videoPath = './Videos/VID_20241122_143045.mp4'
 #videoPath = './lightsLong.mkv'
 
 # Explicitly set OpenCV to avoid scaling issues
@@ -119,6 +124,17 @@ def mouse_callback(event, x, y, flags, param):
             elif(selectedOption == 3):
                 thirdClickedPoints.append((x, y))
                 draw_light_circle(firstFrame,thirdClickedPoints)
+
+def load_saved_data():
+    global roadLineSegments,carsGroupedByArr, clickedPoints, isFirstFrame, firstFrame, lightLineSegments, rightClickedPoints, thirdClickedPoints
+
+    roadLineSegments, carsGroupedByArr = calculate_segment_line_equations(roadLineSegments,
+                                                                          carsGroupedByArr,
+                                                                          clickedPoints, isFirstFrame,
+                                                                          firstFrame)
+    lightLineSegments = calculate_light_lines(lightLineSegments, rightClickedPoints, isFirstFrame, firstFrame,
+                                              idToColorLight)
+    draw_light_circle(firstFrame, thirdClickedPoints)
 
 # Przypisanie obsługi zdarzeń myszy
 cv2.namedWindow('Traffic Tracking')
@@ -309,10 +325,23 @@ def get_basic_info():
 
     return crossroad_name, city_name
 
+resultLoadData = False
+
+def ask_if_load_data():
+    global resultLoadData
+    root = tk.Tk()
+    root.withdraw()
+
+    resultLoadData = messagebox.askyesno("Wczytanie danych", "Czy załadować linie z bazy?")
+
+    return resultLoadData
+
 #IMPORTANT FOR DATABASE INSERTIONS (FOREIGN KEYS!)
 idNameOfPlace = None
 idVideo = None
 listOfIdTrafficLanes = [] #Lista id TrafficLanes dla kolejnych pasów w roadLineSegments, jeżeli w roadLineSegment pas jest pod indexem 0 to jego id będzie w listOfIdTrafficLanes pod indeksem 0 itp.
+listOfSginalLights = [] #for saved points of signal lights in db
+listOfTrafficLanes = [] #for saved points of traffic lanes in db
 
 def main():
     global stopThreads, startProcessing, firstFrame
@@ -322,10 +351,37 @@ def main():
     global idVideo
     global listOfIdTrafficLanes
     global allCarsId,carStartTimes,carSpeeds
+    global listOfSginalLights
+    global listOfTrafficLanes
+    global resultLoadData
+    global roadLineSegments, carsGroupedByArr, isFirstFrame
 
     crossroad_name, city_name = get_basic_info()
     print(f"Skrzyżowanie: {crossroad_name}")
     print(f"Miasto: {city_name}")
+
+    resultLoadData = ask_if_load_data()
+
+    if resultLoadData:
+        listOfSginalLights = get_signallights(crossroad_name, city_name)
+        if listOfSginalLights:
+            for signalLight in listOfSginalLights:
+                rightClickedPoints.append((signalLight[1], signalLight[2])) #start point of light line
+                rightClickedPoints.append((signalLight[3], signalLight[4])) #end point of light line
+                thirdClickedPoints.append((signalLight[5], signalLight[6])) #point of signal light
+                print(rightClickedPoints)
+                print(thirdClickedPoints)
+                print(f"ID: {signalLight[0]}, StopLineStartX: {signalLight[1]}, StopLineStartY: {signalLight[2]}, StopLineEndX: {signalLight[3]}, StopLineEndY: {signalLight[4]}, SignalX: {signalLight[5]}, SignalY: {signalLight[6]}")
+
+        listOfTrafficLanes = get_trafficlanes(crossroad_name, city_name)
+        if listOfTrafficLanes:
+            for trafficlane in listOfTrafficLanes:
+                clickedPoints.append((trafficlane[1], trafficlane[2])) #start point of traffic lane
+                clickedPoints.append((trafficlane[3], trafficlane[4])) #end point of traffic lane
+                print(clickedPoints)
+                print(f"ID: {trafficlane[0]}, TrafficLanesStartX: {trafficlane[1]}, TrafficLanesStartY: {trafficlane[2]}, TrafficLanesEndX: {trafficlane[3]}, TrafficLanesEndY: {trafficlane[4]}")
+
+
 
     #Inserting data to nameofplace
     insert_nameOfPlace(crossroad_name, city_name)
@@ -357,6 +413,7 @@ def main():
     if not success:
         print("Error: Could not read the first frame.")
 
+    load_saved_data()
 
     # cv2.imshow musza pracowac na tym samym wątku (w tym przypadku MainThread)
     while not stopThreads:
@@ -366,8 +423,9 @@ def main():
             key = cv2.waitKey(1)
             if key == ord('d'):  # Start processing when 'd' is pressed
                 startProcessing = True
-                listOfIdTrafficLanes = insert_trafficLanes(clickedPoints, idNameOfPlace)
-                insert_signalLights(rightClickedPoints, thirdClickedPoints, idNameOfPlace)
+                if not resultLoadData:
+                    listOfIdTrafficLanes = insert_trafficLanes(clickedPoints, idNameOfPlace)
+                    insert_signalLights(rightClickedPoints, thirdClickedPoints, idNameOfPlace)
 
             elif key == ord('q'):  # Quit
                 stopThreads = True
