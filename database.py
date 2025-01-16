@@ -220,8 +220,9 @@ def insert_distancesBetweenCars(idVideo,distancesBetweenCars):
         except Error as e:
             print(f"Error: {e}")
             connection.rollback()
+        finally:
+            close_connection(connection, cursor)
 
-    close_connection(connection, cursor)
 
 def get_signallights(name, city):
     connection = create_connection()
@@ -258,5 +259,67 @@ def get_trafficlanes(name, city):
             close_connection(connection, cursor)
 
     return trafficlanes
+
+def delete_trafficLanes_cascade(idNameOfPlace):
+    connection = create_connection()
+    cursor = None
+    if connection:
+        try:
+            cursor = connection.cursor()
+
+            # Usunięcie rekordów z speedOfCar
+            query = """
+                DELETE FROM speedOfCar 
+                WHERE (id_car, id_video) IN (
+                    SELECT id, id_video FROM car WHERE id_trafficLanes IN (
+                        SELECT id FROM trafficLanes WHERE id_nameOfPlace = %s
+                    )
+                );
+            """
+            cursor.execute(query, (idNameOfPlace,))
+
+            # Usunięcie rekordów z distanceOfCar
+            query = """
+                DELETE FROM distanceOfCar 
+                WHERE (id_car1, id_video1) IN (
+                    SELECT id, id_video FROM car WHERE id_trafficLanes IN (
+                        SELECT id FROM trafficLanes WHERE id_nameOfPlace = %s
+                    )
+                )
+                OR (id_car2, id_video2) IN (
+                    SELECT id, id_video FROM car WHERE id_trafficLanes IN (
+                        SELECT id FROM trafficLanes WHERE id_nameOfPlace = %s
+                    )
+                );
+            """
+            cursor.execute(query, (idNameOfPlace, idNameOfPlace))
+
+            # Usunięcie rekordów z car
+            query = """
+                DELETE FROM car 
+                WHERE id_trafficLanes IN (
+                    SELECT id FROM trafficLanes WHERE id_nameOfPlace = %s
+                );
+            """
+            cursor.execute(query, (idNameOfPlace,))
+
+            # Usunięcie samych traffic lanes
+            query = "DELETE FROM trafficLanes WHERE id_nameOfPlace = %s;"
+            cursor.execute(query, (idNameOfPlace,))
+
+            # Usunięcie samych signal lights
+            query = "DELETE FROM signallights WHERE id_nameOfPlace = %s;"
+            cursor.execute(query, (idNameOfPlace,))
+
+            connection.commit()
+            print("All related traffic lanes and their dependencies have been deleted successfully.")
+
+        except Error as e:
+            print(f"Error: {e}")
+            connection.rollback()
+
+        finally:
+            close_connection(connection, cursor)
+
 
 

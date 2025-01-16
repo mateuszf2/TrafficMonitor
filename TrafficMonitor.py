@@ -40,6 +40,7 @@ from database import insert_speedsOfCars
 from database import insert_distancesBetweenCars
 from database import get_signallights
 from database import get_trafficlanes
+from database import delete_trafficLanes_cascade
 
 # Wykrywanie urządzenia CUDA
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -378,23 +379,32 @@ def main():
             for trafficlane in listOfTrafficLanes:
                 clickedPoints.append((trafficlane[1], trafficlane[2])) #start point of traffic lane
                 clickedPoints.append((trafficlane[3], trafficlane[4])) #end point of traffic lane
+                listOfIdTrafficLanes.append(trafficlane[0]) #we need to create listOfIdTrafficLanes, because it is important during inserting cars; if we create new dataset for intersection, this list is created later during `listOfIdTrafficLanes = insert_trafficLanes(clickedPoints, idNameOfPlace)` => lastRowid from db
                 print(clickedPoints)
                 print(f"ID: {trafficlane[0]}, TrafficLanesStartX: {trafficlane[1]}, TrafficLanesStartY: {trafficlane[2]}, TrafficLanesEndX: {trafficlane[3]}, TrafficLanesEndY: {trafficlane[4]}")
 
 
-
-    #Inserting data to nameofplace
-    insert_nameOfPlace(crossroad_name, city_name)
     #Getting all data from table nameofplace
     intersections = get_nameOfPlace()
+
+    isPlaceNew = True
 
     if intersections:
         for intersection in intersections:
             print(f"ID: {intersection[0]}, Name: {intersection[1]}, City: {intersection[2]}")
             if intersection[1]==crossroad_name and intersection[2]==city_name:
+                isPlaceNew = False
                 idNameOfPlace = intersection[0]
     else:
         print("No data found.")
+
+    if isPlaceNew:
+        # Inserting data to nameofplace
+        insert_nameOfPlace(crossroad_name, city_name)
+        intersections = get_nameOfPlace()
+        idNameOfPlace = intersections[-1][0]
+
+    print(f"Id (nameOfPlace): {idNameOfPlace}, Name: {crossroad_name}, City: {city_name}")
 
     idVideo = insert_video(idNameOfPlace, videoPath, datetime.now())
 
@@ -424,6 +434,10 @@ def main():
             if key == ord('d'):  # Start processing when 'd' is pressed
                 startProcessing = True
                 if not resultLoadData:
+                    #Deleting all stored data about intersection
+                    delete_trafficLanes_cascade(idNameOfPlace)
+
+                    #Inserting new data about intersection
                     listOfIdTrafficLanes = insert_trafficLanes(clickedPoints, idNameOfPlace)
                     insert_signalLights(rightClickedPoints, thirdClickedPoints, idNameOfPlace)
 
@@ -447,6 +461,8 @@ def main():
     # Wait for threads to finish
     captureThreadObj.join()
     processingThreadObj.join()
+
+    print(listOfIdTrafficLanes)
 
     insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTimes)
     insert_carNotGrouped(idVideo, allCarsId)
