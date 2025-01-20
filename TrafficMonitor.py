@@ -55,8 +55,8 @@ fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
 #videoPath = '../trafficMonitorVideos/ruch_uliczny.mp4'
-#videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
-videoPath = './Videos/VID_20241122_143045.mp4'
+videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
+#videoPath = './Videos/VID_20241122_143045.mp4'
 #videoPath = './lightsLong.mkv'
 
 # Explicitly set OpenCV to avoid scaling issues
@@ -101,8 +101,16 @@ isFirstFrame= True
 
 
 selectedOption = 1 #selectedOption = 1 BUTTON1 , selectedOption = 2 BUTTON2
+
+# Global variables for ROI
+drawing = False
+roiStart = (1,1)
+roiEnd = (1,1)
+ifRoi=False
 def mouse_callback(event, x, y, flags, param):
     global roadLineSegments,carsGroupedByArr,lightLineSegments, selectedOption, thirdClickedPoints
+    global drawing, roiStart, roiEnd,ifRoi
+
     if event == cv2.EVENT_LBUTTONDOWN:
         if(x > 50 and x < 200 and y > 50 and y < 100): #button 1
             selectedOption = 1
@@ -110,6 +118,8 @@ def mouse_callback(event, x, y, flags, param):
             selectedOption = 2
         elif (x > 450 and x < 600 and y > 50 and y < 100):  # button 3
             selectedOption = 3
+        elif(x > 650 and x < 800 and y > 50 and y < 100):
+            selectedOption=4
         else: #Here we decide what function we should use(after checking which button is selected <-- )
             if(selectedOption == 1):
                 clickedPoints.append((x, y))
@@ -125,6 +135,17 @@ def mouse_callback(event, x, y, flags, param):
             elif(selectedOption == 3):
                 thirdClickedPoints.append((x, y))
                 draw_light_circle(firstFrame,thirdClickedPoints)
+            elif (selectedOption == 4):
+                ifRoi=True
+                if drawing == False:
+                    if event == cv2.EVENT_LBUTTONDOWN:
+                        drawing = True
+                        roiStart = (x, y)
+                        roiEnd = (x, y)
+                if drawing == True:
+                    if event == cv2.EVENT_LBUTTONDOWN:
+                        roiEnd = (x, y)
+
 
 def load_saved_data():
     global roadLineSegments,carsGroupedByArr, clickedPoints, isFirstFrame, firstFrame, lightLineSegments, rightClickedPoints, thirdClickedPoints
@@ -194,6 +215,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
     global listOfIdTrafficLanes
     global allCarsId
     global carStartTimes,distancesBetweenCars
+    global roiStart,roiEnd
 
     while not stopThreads:
         try:
@@ -209,11 +231,24 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
             boxes = r.boxes
             for box in boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                w, h = x2 - x1, y2 - y1
-                conf = math.ceil((box.conf[0] * 100)) / 100
-                cls = int(box.cls[0])
-                if classNames[cls] == "car":
-                    detections = np.vstack((detections, [x1, y1, x2, y2, conf]))
+                if ifRoi == True:
+                    if roiStart[0]>roiEnd[0]:   # Change order if necessary
+                        help=roiStart
+                        roiStart=roiEnd
+                        roiEnd=help
+                    if (roiStart[0] <= x1 <= roiEnd[0] and roiStart[0] <= x2 <= roiEnd[0]
+                    and roiStart[1] >= y1 >= roiEnd[1] and roiStart[1] >= y2 >= roiEnd[1]):
+                        w, h = x2 - x1, y2 - y1
+                        conf = math.ceil((box.conf[0] * 100)) / 100
+                        cls = int(box.cls[0])
+                        if classNames[cls] == "car":
+                            detections = np.vstack((detections, [x1, y1, x2, y2, conf]))
+                else:
+                    w, h = x2 - x1, y2 - y1
+                    conf = math.ceil((box.conf[0] * 100)) / 100
+                    cls = int(box.cls[0])
+                    if classNames[cls] == "car":
+                        detections = np.vstack((detections, [x1, y1, x2, y2, conf]))
 
         resultsTracker = tracker.update(detections)
         carCenters = {}
@@ -310,6 +345,7 @@ def processing_thread(frameQueue, processedQueue, model, tracker):
         draw_light_lines(frame, lightLineSegments, idToColorLight)
         draw_light_circle(frame, thirdClickedPoints)
         draw_lines_between_cars(frame, carCenters, carsGroupedByArr, CAR_LENGTH,distancesBetweenCars,currentFrame)
+        cv2.rectangle(frame, roiStart, roiEnd, color=(255, 0, 0), thickness=2)
 
         # Add processed frame to the processed queue
         if not processedQueue.full():
