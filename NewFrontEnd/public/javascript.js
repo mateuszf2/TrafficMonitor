@@ -24,7 +24,7 @@ async function showStats() {
         }
 
         const statsDisplay = document.getElementById('stats-display');
-        statsDisplay.innerHTML =`
+        statsDisplay.innerHTML = `
             <p>Łączna liczba pojazdów: ${stats.totalCars}</p>
             <p>Średnia prędkość: ${stats.averageSpeed.toFixed(2)} km/h</p>
             <p>Ilość aut, które przejechały na czerwonym: ${stats.carsOnRed}</p>
@@ -32,7 +32,7 @@ async function showStats() {
         `;
 
         updateBarChart(stats.carsOnRed, stats.totalCars - stats.carsOnRed);
-        await showHourlyStats(); 
+        await showHourlyStats();
     } catch (error) {
         console.error('Błąd podczas ładowania statystyk:', error);
         alert('Nie udało się załadować statystyk.');
@@ -89,7 +89,6 @@ async function showHourlyStats() {
     }
 }
 
-// Funkcja do aktualizacji wykresu słupkowego (na czerwonym i zielonym świetle)
 function updateBarChart(carsOnRed, carsOnGreen) {
     if (barChart) {
         barChart.data.datasets[0].data = [carsOnRed, carsOnGreen];
@@ -103,7 +102,7 @@ function updateBarChart(carsOnRed, carsOnGreen) {
                 datasets: [{
                     label: 'Liczba pojazdów',
                     data: [carsOnRed, carsOnGreen],
-                    backgroundColor: ['#FF5733', '#33FF57'], 
+                    backgroundColor: ['#FF5733', '#33FF57'],
                 }]
             },
             options: {
@@ -118,21 +117,20 @@ function updateBarChart(carsOnRed, carsOnGreen) {
     }
 }
 
-// Funkcja do rysowania wykresu godzinowego
 function updateLineChart(hours, carsPerHour) {
     if (lineChart) {
-        lineChart.data.datasets[0].data = carsPerHour;  
-        lineChart.data.labels = hours;  
-        lineChart.update();  
+        lineChart.data.datasets[0].data = carsPerHour;
+        lineChart.data.labels = hours;
+        lineChart.update();
     } else {
         const ctx = document.getElementById('lineChart').getContext('2d');
         lineChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: hours,  
+                labels: hours,
                 datasets: [{
                     label: 'Liczba aut',
-                    data: carsPerHour, 
+                    data: carsPerHour,
                     borderColor: 'rgba(75, 192, 192, 1)',
                     borderWidth: 1,
                     fill: false,
@@ -161,7 +159,81 @@ function updateLineChart(hours, carsPerHour) {
     }
 }
 
+async function showPeriodStats() {
+    try {
+        const selectElement = document.getElementById('intersection-select');
+        const placeId = selectElement.value;
+        const periodSelect = document.getElementById('period-select');
+        const period = periodSelect.value;
 
+        if (!placeId) {
+            alert('Wybierz skrzyżowanie, aby zobaczyć statystyki!');
+            return;
+        }
+
+        const dateInput = document.getElementById('date-input');
+        const date = dateInput?.value;
+        if (!date) {
+            alert('Wybierz datę, aby zobaczyć dane!');
+            return;
+        }
+
+        const response = await fetch(`/api/periodStats/${placeId}?date=${date}&period=${period}`);
+        const periodStats = await response.json();
+
+        if (response.status !== 200 || !periodStats) {
+            throw new Error(periodStats.error || 'Nie udało się pobrać danych.');
+        }
+
+        const { labels, carCounts } = periodStats;
+
+        updatePeriodChart(labels, carCounts);
+    } catch (error) {
+        console.error('Błąd podczas ładowania danych okresowych:', error);
+        alert('Nie udało się załadować danych okresowych.');
+    }
+}
+
+function updatePeriodChart(labels, carCounts) {
+    const ctx = document.getElementById('periodChart').getContext('2d');
+
+    if (window.periodChart && window.periodChart.destroy) {
+        window.periodChart.destroy();
+    }
+
+    window.periodChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Liczba aut',
+                data: carCounts,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1,
+                fill: false,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Okres'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Liczba aut'
+                    }
+                }
+            }
+        }
+    });
+}
 
 // Ładowanie miejsc
 async function loadPlaces() {
@@ -199,5 +271,5 @@ function showSection(sectionId) {
 // Inicjalizacja po załadowaniu strony
 document.addEventListener('DOMContentLoaded', () => {
     loadPlaces();
-    showSection('analiza'); 
+    showSection('analiza');
 });
