@@ -127,7 +127,7 @@ function updateLineChart(hours, carsPerHour) {
         lineChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: hours,
+                labels: hours,  // Godziny na osi X
                 datasets: [{
                     label: 'Liczba aut',
                     data: carsPerHour,
@@ -187,7 +187,12 @@ async function showPeriodStats() {
 
         const { labels, carCounts } = periodStats;
 
-        updatePeriodChart(labels, carCounts);
+        // Sprawdzamy, czy wybór to 'day'
+        if (period === 'day') {
+            updateLineChart(labels, carCounts);
+        } else {
+            updatePeriodChart(labels, carCounts);
+        }
     } catch (error) {
         console.error('Błąd podczas ładowania danych okresowych:', error);
         alert('Nie udało się załadować danych okresowych.');
@@ -235,7 +240,6 @@ function updatePeriodChart(labels, carCounts) {
     });
 }
 
-// Ładowanie miejsc
 async function loadPlaces() {
     try {
         const response = await fetch('/api/places');
@@ -255,7 +259,6 @@ async function loadPlaces() {
     }
 }
 
-// Pokaż sekcję
 function showSection(sectionId) {
     const sections = document.querySelectorAll('.section');
     sections.forEach(section => {
@@ -268,7 +271,6 @@ function showSection(sectionId) {
     }
 }
 
-// Inicjalizacja po załadowaniu strony
 document.addEventListener('DOMContentLoaded', () => {
     loadPlaces();
     showSection('analiza');

@@ -244,6 +244,7 @@ app.get('/api/periodStats/:placeId', (req, res) => {
     });
 });
 
+
 // Uruchomienie serwera
 app.listen(port, () => {
     console.log(`Serwer działa na http://localhost:${port}`);
