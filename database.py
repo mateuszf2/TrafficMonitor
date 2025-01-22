@@ -135,7 +135,7 @@ def insert_signalLights(rightClickedPoints, thirdClickedPoints, idNameOfPlace):
                         print(f"Error: {e}")
     close_connection(connection, cursor)
 
-def insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTimes):
+def insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTimes, carsHasCrossedLight):
     connection = create_connection()
     cursor = None
     if connection:
@@ -148,11 +148,11 @@ def insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTi
 
                     cursor = connection.cursor()
                     if carStartTimes[id]!=-1:
-                        query = "INSERT INTO car(id, id_video, id_trafficLanes,startTime) VALUES(%s, %s, %s,%s)"
-                        cursor.execute(query, (id, idVideo, idTrafficLanes,carStartTimes[id]))
+                        query = "INSERT INTO car(id, id_video, id_trafficLanes,startTime, ifRed) VALUES(%s, %s, %s,%s,%s)"
+                        cursor.execute(query, (id, idVideo, idTrafficLanes,carStartTimes[id], carsHasCrossedLight.get(id)))
                     else:
-                        query = "INSERT INTO car(id, id_video, id_trafficLanes) VALUES(%s, %s, %s)"
-                        cursor.execute(query, (id, idVideo, idTrafficLanes))
+                        query = "INSERT INTO car(id, id_video, id_trafficLanes, ifRed) VALUES(%s, %s, %s,%s)"
+                        cursor.execute(query, (id, idVideo, idTrafficLanes, carsHasCrossedLight.get(id)))
             connection.commit()
             print("Data about car added successfully.")
         except Error as e:
@@ -161,7 +161,7 @@ def insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTi
 
     close_connection(connection, cursor)
 
-def insert_carNotGrouped(idVideo, allCarsId):
+def insert_carNotGrouped(idVideo, allCarsId,carsHasCrossedLight):
     connection = create_connection()
     cursor = None
     if connection:
@@ -169,8 +169,8 @@ def insert_carNotGrouped(idVideo, allCarsId):
             for carId in allCarsId:
                 cursor = connection.cursor()
 
-                query = "INSERT INTO car(id, id_video) VALUES(%s, %s)"
-                cursor.execute(query, (carId, idVideo))
+                query = "INSERT INTO car(id, id_video,ifRed) VALUES(%s, %s, %s)"
+                cursor.execute(query, (carId, idVideo, carsHasCrossedLight.get(carId)))
             connection.commit()
             print("Data about car added successfully.")
         except Error as e:
@@ -309,6 +309,27 @@ def delete_trafficLanes_cascade(idNameOfPlace):
 
             # Usunięcie samych signal lights
             query = "DELETE FROM signallights WHERE id_nameOfPlace = %s;"
+            cursor.execute(query, (idNameOfPlace,))
+
+            query = """
+                DELETE FROM speedOfCar 
+                WHERE (id_car, id_video) IN (
+                    SELECT id, id_video FROM car WHERE id_video IN (
+                        SELECT id FROM video WHERE id_nameOfPlace = %s
+                    )
+                );
+            """
+            cursor.execute(query, (idNameOfPlace,))
+
+            query = """
+                DELETE FROM car 
+                WHERE id_video IN (
+                    SELECT id FROM video WHERE id_nameOfPlace = %s
+                );
+            """
+            cursor.execute(query, (idNameOfPlace,))
+
+            query = "DELETE FROM video WHERE id_nameOfPlace = %s;"
             cursor.execute(query, (idNameOfPlace,))
 
             connection.commit()

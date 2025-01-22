@@ -55,8 +55,8 @@ fileLights = open('lightsData.txt', 'w')
 
 # Wczytanie wideo
 #videoPath = '../trafficMonitorVideos/ruch_uliczny.mp4'
-videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
-#videoPath = './Videos/VID_20241122_143045.mp4'
+#videoPath = '../trafficMonitorVideos/VID_20241122_143045.mp4'
+videoPath = './Videos/VID_20241122_143045.mp4'
 #videoPath = './lightsLong.mkv'
 
 # Explicitly set OpenCV to avoid scaling issues
@@ -392,6 +392,7 @@ def main():
     global listOfTrafficLanes
     global resultLoadData
     global roadLineSegments, carsGroupedByArr, isFirstFrame
+    global carsHasCrossedLight
 
     crossroad_name, city_name = get_basic_info()
     print(f"Skrzyżowanie: {crossroad_name}")
@@ -442,8 +443,6 @@ def main():
 
     print(f"Id (nameOfPlace): {idNameOfPlace}, Name: {crossroad_name}, City: {city_name}")
 
-    idVideo = insert_video(idNameOfPlace, videoPath, datetime.now())
-
     # Start threads
     captureThreadObj = threading.Thread(target=capture_thread, args=(videoPath, frameQueue))
     processingThreadObj = threading.Thread(target=processing_thread, args=(frameQueue, processedQueue, model, tracker))
@@ -472,6 +471,7 @@ def main():
                 if not resultLoadData:
                     #Deleting all stored data about intersection
                     delete_trafficLanes_cascade(idNameOfPlace)
+                    idVideo = insert_video(idNameOfPlace, videoPath, datetime.now())
 
                     #Inserting new data about intersection
                     listOfIdTrafficLanes = insert_trafficLanes(clickedPoints, idNameOfPlace)
@@ -500,8 +500,8 @@ def main():
 
     print(listOfIdTrafficLanes)
 
-    insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTimes)
-    insert_carNotGrouped(idVideo, allCarsId)
+    insert_carGrouped(idVideo, carsGroupedByArr, listOfIdTrafficLanes,carStartTimes, carsHasCrossedLight)
+    insert_carNotGrouped(idVideo, allCarsId,carsHasCrossedLight)
     insert_speedsOfCars(idVideo,carSpeeds)
     insert_distancesBetweenCars(idVideo,distancesBetweenCars)
 
