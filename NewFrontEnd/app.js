@@ -38,7 +38,6 @@ app.get('/', (req, res) => {
 app.post('/login', (req, res) => {
     const { idEmployee, password } = req.body;
 
-    // Sprawdzenie użytkownika w bazie danych
     pool.query('SELECT * FROM admins WHERE id = ?', [idEmployee], (err, results) => {
         if (err) {
             console.error('Błąd zapytania do bazy:', err);
@@ -53,7 +52,6 @@ app.post('/login', (req, res) => {
         const storedPassword = user.password;
         const salt = user.salt;
 
-        // Porównanie hasła
         const generatedHash = generateHash(password, salt);
         if (generatedHash === storedPassword) {
             res.redirect('/mainScreen');
@@ -63,7 +61,6 @@ app.post('/login', (req, res) => {
     });
 });
 
-// Strona główna
 app.get('/mainScreen', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'mainScreen.html'));
 });
@@ -84,7 +81,7 @@ app.get('/api/places', (req, res) => {
 // Pobierz statystyki dla wybranego miejsca i dnia
 app.get('/api/stats/:placeId', (req, res) => {
     const placeId = req.params.placeId;
-    const { date } = req.query; // Pobierz datę z parametrów zapytania (np. ?date=YYYY-MM-DD)
+    const { date } = req.query; 
 
     if (!date) {
         return res.status(400).json({ error: 'Proszę podać datę w formacie YYYY-MM-DD' });
@@ -141,6 +138,45 @@ app.get('/api/stats/:placeId', (req, res) => {
                 averageDistance: 0,
             });
         }
+    });
+});
+
+app.get('/api/hourlyStats/:placeId', (req, res) => {
+    const placeId = req.params.placeId;
+    const { date } = req.query; 
+
+    if (!date) {
+        console.error('Nie podano daty.');
+        return res.status(400).json({ error: 'Proszę podać datę w formacie YYYY-MM-DD' });
+    }
+
+    const hourlyStatsQuery = `
+        SELECT 
+            HOUR(v.timeSet) AS hour, 
+            COUNT(c.id) AS carCount
+        FROM car c
+        INNER JOIN video v ON c.id_video = v.id
+        WHERE v.id_nameOfPlace = ? AND DATE(v.timeSet) = ?
+        GROUP BY HOUR(v.timeSet)
+        ORDER BY hour ASC
+    `;
+
+    console.log(`Zapytanie SQL: ${hourlyStatsQuery}`);
+    console.log(`Parametry: [${placeId}, ${date}]`);
+
+    pool.query(hourlyStatsQuery, [placeId, date], (err, results) => {
+        if (err) {
+            console.error('Błąd zapytania do bazy:', err);
+            return res.status(500).json({ error: 'Błąd serwera' });
+        }
+
+        if (!results || results.length === 0) {
+            console.log('Brak wyników dla podanych parametrów.');
+            return res.json([]); // Zwróć pustą listę
+        }
+
+        console.log('Wyniki zapytania:', results);
+        res.json(results);
     });
 });
 

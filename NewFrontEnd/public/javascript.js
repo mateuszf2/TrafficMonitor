@@ -24,7 +24,7 @@ async function showStats() {
         }
 
         const statsDisplay = document.getElementById('stats-display');
-        statsDisplay.innerHTML = `
+        statsDisplay.innerHTML =`
             <p>Łączna liczba pojazdów: ${stats.totalCars}</p>
             <p>Średnia prędkość: ${stats.averageSpeed.toFixed(2)} km/h</p>
             <p>Ilość aut, które przejechały na czerwonym: ${stats.carsOnRed}</p>
@@ -32,18 +32,69 @@ async function showStats() {
         `;
 
         updateBarChart(stats.carsOnRed, stats.totalCars - stats.carsOnRed);
+        await showHourlyStats(); 
     } catch (error) {
         console.error('Błąd podczas ładowania statystyk:', error);
         alert('Nie udało się załadować statystyk.');
     }
 }
+
+function fillMissingHours(hourlyStats) {
+    const filledStats = [];
+    for (let hour = 0; hour < 24; hour++) {
+        const stat = hourlyStats.find(s => s.hour === hour);
+        filledStats.push({
+            hour: hour,
+            carCount: stat ? stat.carCount : 0,
+        });
+    }
+    return filledStats;
+}
+
+async function showHourlyStats() {
+    try {
+        const selectElement = document.getElementById('intersection-select');
+        const placeId = selectElement.value;
+
+        if (!placeId) {
+            alert('Wybierz skrzyżowanie, aby zobaczyć dane godzinowe!');
+            return;
+        }
+
+        const dateInput = document.getElementById('date-input');
+        const date = dateInput?.value;
+        if (!date) {
+            alert('Wybierz datę, aby zobaczyć dane godzinowe!');
+            return;
+        }
+
+        console.log(`Pobieranie danych godzinowych dla miejsca ${placeId} na dzień ${date}`);
+
+        const response = await fetch(`/api/hourlyStats/${placeId}?date=${date}`);
+        const hourlyStats = await response.json();
+
+        if (response.status !== 200 || !hourlyStats) {
+            throw new Error(hourlyStats.error || 'Nie udało się pobrać danych godzinowych.');
+        }
+
+        const filledStats = fillMissingHours(hourlyStats);
+
+        const hours = filledStats.map(stat => stat.hour);
+        const carsPerHour = filledStats.map(stat => stat.carCount);
+
+        updateLineChart(hours, carsPerHour);
+    } catch (error) {
+        console.error('Błąd podczas ładowania danych godzinowych:', error);
+        alert('Nie udało się załadować danych godzinowych.');
+    }
+}
+
+// Funkcja do aktualizacji wykresu słupkowego (na czerwonym i zielonym świetle)
 function updateBarChart(carsOnRed, carsOnGreen) {
     if (barChart) {
-        // Zaktualizuj dane istniejącego wykresu
         barChart.data.datasets[0].data = [carsOnRed, carsOnGreen];
         barChart.update();
     } else {
-        // Utwórz nowy wykres, jeśli jeszcze nie istnieje
         const ctx = document.getElementById('barChart').getContext('2d');
         barChart = new Chart(ctx, {
             type: 'bar',
@@ -52,7 +103,7 @@ function updateBarChart(carsOnRed, carsOnGreen) {
                 datasets: [{
                     label: 'Liczba pojazdów',
                     data: [carsOnRed, carsOnGreen],
-                    backgroundColor: ['#FF5733', '#33FF57'], // Kolory słupków
+                    backgroundColor: ['#FF5733', '#33FF57'], 
                 }]
             },
             options: {
@@ -67,6 +118,51 @@ function updateBarChart(carsOnRed, carsOnGreen) {
     }
 }
 
+// Funkcja do rysowania wykresu godzinowego
+function updateLineChart(hours, carsPerHour) {
+    if (lineChart) {
+        lineChart.data.datasets[0].data = carsPerHour;  
+        lineChart.data.labels = hours;  
+        lineChart.update();  
+    } else {
+        const ctx = document.getElementById('lineChart').getContext('2d');
+        lineChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: hours,  
+                datasets: [{
+                    label: 'Liczba aut',
+                    data: carsPerHour, 
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    fill: false,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Godzina'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Ilość aut'
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+
+
 // Ładowanie miejsc
 async function loadPlaces() {
     try {
@@ -74,7 +170,7 @@ async function loadPlaces() {
         const places = await response.json();
 
         const selectElement = document.getElementById('intersection-select');
-        selectElement.innerHTML = ''; // Czyszczenie istniejących opcji
+        selectElement.innerHTML = '';
 
         places.forEach(place => {
             const option = document.createElement('option');
@@ -103,5 +199,5 @@ function showSection(sectionId) {
 // Inicjalizacja po załadowaniu strony
 document.addEventListener('DOMContentLoaded', () => {
     loadPlaces();
-    showSection('analiza'); // Domyślnie wyświetl sekcję "analiza"
+    showSection('analiza'); 
 });
