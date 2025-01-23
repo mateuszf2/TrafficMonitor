@@ -471,12 +471,11 @@ def main():
                 if not resultLoadData:
                     #Deleting all stored data about intersection
                     delete_trafficLanes_cascade(idNameOfPlace)
-                    idVideo = insert_video(idNameOfPlace, videoPath, datetime.now())
 
                     #Inserting new data about intersection
                     listOfIdTrafficLanes = insert_trafficLanes(clickedPoints, idNameOfPlace)
                     insert_signalLights(rightClickedPoints, thirdClickedPoints, idNameOfPlace)
-
+                idVideo = insert_video(idNameOfPlace, videoPath, datetime.now())
             elif key == ord('q'):  # Quit
                 stopThreads = True
                 break
