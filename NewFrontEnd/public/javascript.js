@@ -16,6 +16,7 @@ async function showStats() {
             return;
         }
 
+        // Pobierz podstawowe statystyki
         const response = await fetch(`/api/stats/${placeId}?date=${date}`);
         const stats = await response.json();
 
@@ -23,6 +24,7 @@ async function showStats() {
             throw new Error(stats.error || 'Nie udało się pobrać statystyk.');
         }
 
+        // Wyświetlanie podsumowujących statystyk
         const statsDisplay = document.getElementById('stats-display');
         statsDisplay.innerHTML = `
             <p>Łączna liczba pojazdów: ${stats.totalCars}</p>
@@ -31,15 +33,18 @@ async function showStats() {
             <p>Średnia odległość między pojazdami: ${stats.averageDistance.toFixed(2)} m</p>
         `;
 
+        // Zaktualizuj wykres słupkowy
         updateBarChart(stats.carsOnRed, stats.totalCars - stats.carsOnRed);
-        await showHourlyStats();
+
+        // Automatyczne wywołanie showPeriodStats() z domyślnym okresem
+        await showPeriodStats(placeId, date);
     } catch (error) {
         console.error('Błąd podczas ładowania statystyk:', error);
         alert('Nie udało się załadować statystyk.');
     }
 }
 
-function fillMissingHours(hourlyStats) {
+/*function fillMissingHours(hourlyStats) {
     const filledStats = [];
     for (let hour = 0; hour < 24; hour++) {
         const stat = hourlyStats.find(s => s.hour === hour);
@@ -49,9 +54,9 @@ function fillMissingHours(hourlyStats) {
         });
     }
     return filledStats;
-}
+}*/
 
-async function showHourlyStats() {
+/*async function showHourlyStats() {
     try {
         const selectElement = document.getElementById('intersection-select');
         const placeId = selectElement.value;
@@ -87,7 +92,7 @@ async function showHourlyStats() {
         console.error('Błąd podczas ładowania danych godzinowych:', error);
         alert('Nie udało się załadować danych godzinowych.');
     }
-}
+}*/
 
 function updateBarChart(carsOnRed, carsOnGreen) {
     if (barChart) {
@@ -127,7 +132,7 @@ function updateLineChart(hours, carsPerHour) {
         lineChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: hours,  // Godziny na osi X
+                labels: hours,
                 datasets: [{
                     label: 'Liczba aut',
                     data: carsPerHour,
@@ -159,47 +164,43 @@ function updateLineChart(hours, carsPerHour) {
     }
 }
 
-async function showPeriodStats() {
+// Funkcja do wyświetlania statystyk okresowych
+async function showPeriodStats(placeId, date) {
     try {
-        const selectElement = document.getElementById('intersection-select');
-        const placeId = selectElement.value;
         const periodSelect = document.getElementById('period-select');
         const period = periodSelect.value;
-
-        if (!placeId) {
-            alert('Wybierz skrzyżowanie, aby zobaczyć statystyki!');
-            return;
-        }
-
-        const dateInput = document.getElementById('date-input');
-        const date = dateInput?.value;
-        if (!date) {
-            alert('Wybierz datę, aby zobaczyć dane!');
-            return;
-        }
 
         const response = await fetch(`/api/periodStats/${placeId}?date=${date}&period=${period}`);
         const periodStats = await response.json();
 
         if (response.status !== 200 || !periodStats) {
-            throw new Error(periodStats.error || 'Nie udało się pobrać danych.');
+            throw new Error(periodStats.error || 'Nie udało się pobrać danych okresowych.');
         }
 
         const { labels, carCounts } = periodStats;
 
-        // Sprawdzamy, czy wybór to 'day'
-        if (period === 'day') {
-            updateLineChart(labels, carCounts);
-        } else {
-            updatePeriodChart(labels, carCounts);
-        }
+        // Zaktualizuj wykres okresowy
+        updatePeriodChart(labels, carCounts);
     } catch (error) {
         console.error('Błąd podczas ładowania danych okresowych:', error);
         alert('Nie udało się załadować danych okresowych.');
     }
 }
 
-function updatePeriodChart(labels, carCounts) {
+// Funkcja dynamicznie reagująca na zmianę okresu
+function onPeriodChange() {
+    const selectElement = document.getElementById('intersection-select');
+    const dateInput = document.getElementById('date-input');
+
+    const placeId = selectElement.value;
+    const date = dateInput?.value;
+
+    if (placeId && date) {
+        showPeriodStats(placeId, date);
+    }
+}
+
+function updatePeriodChart(labels, carCounts, xAxisLabel) {
     const ctx = document.getElementById('periodChart').getContext('2d');
 
     if (window.periodChart && window.periodChart.destroy) {
@@ -225,7 +226,7 @@ function updatePeriodChart(labels, carCounts) {
                 x: {
                     title: {
                         display: true,
-                        text: 'Okres'
+                        text: xAxisLabel
                     }
                 },
                 y: {

@@ -88,23 +88,18 @@
                 </div>
                 <div class="charts">
                     <div class="chart">
-                        <h2>Count of Cars (24h)</h2>
-                        <canvas id="lineChart"></canvas>
-                    </div>
-                    <div class="chart">
-                        <h2>Lights</h2>
-                        <canvas id="barChart"></canvas>
-                    </div>
-                    <div class="chart">
                         <h2>Choose a period</h2>
                         <canvas id="periodChart"></canvas>
-                        <select id="period-select">
-                            <option value="day">Day</option>
+                        <select id="period-select" onchange="onPeriodChange()">
+                            <option value="day" selected>Day</option>
                             <option value="week">Week</option>
                             <option value="month">Month</option>
                             <option value="year">Year</option>
                         </select>
-                        <button onclick="showPeriodStats()">Pokaż statystyki</button>
+                    </div>
+                    <div class="chart">
+                        <h2>Lights</h2>
+                        <canvas id="barChart"></canvas>
                     </div>
                 </div>
             </div>
