@@ -180,6 +180,59 @@ app.get('/api/stats/:placeId', (req, res) => {
     });
 });*/
 
+app.get('/api/videos', (req, res) => {
+    const { placeId, date } = req.query;
+    //console.log(`placeId = ${placeId}, data = ${date}`);
+
+    if (!placeId || !date){
+        return res.status(400).json({ error: 'Proszę wybrać miejsce oraz datę' });
+    }
+
+    const statsVideoQuery = `
+    SELECT v.id as id_video, v.link as nameOfVideo
+    FROM video v
+    WHERE v.id_nameOfPlace = ? AND
+    DATE(v.timeSet) = ?
+    `;
+
+    pool.query(statsVideoQuery, [placeId, date], (err, results) => {
+        if (err) {
+            console.error('Błąd zapytania do bazy:', err);
+            return res.status(500).json({ error: 'Błąd serwera' });
+        }
+
+        console.log('Wynik zapytania do video:', results);
+        res.json(results);
+    });
+
+});
+
+app.get('/api/cars', (req, res) => {
+    const { id_video } = req.query;
+    console.log(`video = ${id_video}`);
+
+    if (!id_video){
+        return res.status(400).json({ error: 'Proszę wybrać video' });
+    }
+
+    const statsCarQuery = `
+    SELECT c.id as id_car
+    FROM car c
+    WHERE c.id_video = ?
+    `;
+
+    pool.query(statsCarQuery, [id_video], (err, results) => {
+        if (err) {
+            console.error('Błąd zapytania do bazy:', err);
+            return res.status(500).json({ error: 'Błąd serwera' });
+        }
+
+        console.log('Wynik zapytania do video:', results);
+        res.json(results);
+    });
+
+});
+
 app.get('/api/periodStats/:placeId', (req, res) => {
     const placeId = req.params.placeId;
     const { period, date } = req.query;
@@ -254,6 +307,7 @@ app.get('/api/periodStats/:placeId', (req, res) => {
         });
     });
 });
+
 
 
 // Uruchomienie serwera

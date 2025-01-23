@@ -20,6 +20,8 @@ async function showStats() {
         const response = await fetch(`/api/stats/${placeId}?date=${date}`);
         const stats = await response.json();
 
+        loadVideos(placeId, date);
+
         if (response.status !== 200 || !stats) {
             throw new Error(stats.error || 'Nie udało się pobrać statystyk.');
         }
@@ -260,6 +262,45 @@ async function loadPlaces() {
     }
 }
 
+async function loadVideos(placeId, date) {
+    try {
+        const response = await fetch(`/api/videos?placeId=${placeId}&date=${date}`);
+        const videos = await response.json();
+
+        const selectElement = document.getElementById('video-select');
+        selectElement.innerHTML = '';
+
+        videos.forEach(video => {
+            const option = document.createElement('option');
+            option.value = video.id_video;
+            option.textContent = `${video.nameOfVideo}`;
+            selectElement.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Błąd podczas ładowania miejsc:', error);
+    }
+}
+
+async function loadCars(id_video) {
+    try {
+        const response = await fetch(`/api/cars?id_video=${id_video}`);
+        const cars = await response.json();
+
+        //const selectElement = document.getElementById('car-select');
+        selectElement.innerHTML = '';
+
+        cars.forEach(car => {
+            const option = document.createElement('option');
+            option.value = car.id_car;
+            option.textContent = `${car.id_car}`;
+            selectElement.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Błąd podczas ładowania miejsc:', error);
+    }
+}
+
+
 function showSection(sectionId) {
     const sections = document.querySelectorAll('.section');
     sections.forEach(section => {
@@ -275,4 +316,13 @@ function showSection(sectionId) {
 document.addEventListener('DOMContentLoaded', () => {
     loadPlaces();
     showSection('analiza');
+    const carSelect = document.getElementById("car-select");
+    const videoSelect = document.getElementById("video-select");
+    videoSelect.addEventListener('change',() => {
+        const selectedVideoId = videoSelect.value;
+        if (selectedVideoId){
+            console.log(selectedVideoId);
+            loadCars(selectedVideoId);
+        }
+    });
 });
