@@ -233,6 +233,46 @@ app.get('/api/cars', (req, res) => {
 
 });
 
+app.get('/api/carsStats', (req, res) => {
+    const { id_video, id_car } = req.query;
+    console.log(`video = ${id_video} car = ${id_car}`);
+
+    if (!id_video || !id_car){
+        return res.status(400).json({ error: 'Proszę wybrać video' });
+    }
+
+    const statsCarQuery = `
+    SELECT 
+    c.id AS id_car,
+    c.ifRed AS ifRed,
+    c.startTime AS startTime,
+    COALESCE(AVG(doC.length), 0) AS avgDistance,
+    COALESCE(AVG(soC.speed), 0) AS avgSpeed
+    FROM car c
+    JOIN speedOfCar soC 
+    ON soC.id_car = c.id 
+    AND soC.id_video = c.id_video
+    LEFT JOIN distanceOfCar doC 
+    ON doC.id_video1 = c.id_video  
+    AND (
+        (doC.id_car1 = c.id) OR (doC.id_car2 = c.id)
+    )
+    WHERE c.id_video = ? AND c.id = ?
+    GROUP BY c.id;
+    `;
+
+    pool.query(statsCarQuery, [id_video, id_car], (err, results) => {
+        if (err) {
+            console.error('Błąd zapytania do bazy:', err);
+            return res.status(500).json({ error: 'Błąd serwera' });
+        }
+
+        console.log('Wynik zapytania do video:', results);
+        res.json(results);
+    });
+
+});
+
 app.get('/api/periodStats/:placeId', (req, res) => {
     const placeId = req.params.placeId;
     const { period, date } = req.query;

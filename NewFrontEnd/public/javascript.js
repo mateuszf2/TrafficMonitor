@@ -20,7 +20,11 @@ async function showStats() {
         const response = await fetch(`/api/stats/${placeId}?date=${date}`);
         const stats = await response.json();
 
+        document.getElementById("car-select").innerHTML='';
+
         loadVideos(placeId, date);
+
+        
 
         if (response.status !== 200 || !stats) {
             throw new Error(stats.error || 'Nie udało się pobrać statystyk.');
@@ -276,6 +280,18 @@ async function loadVideos(placeId, date) {
             option.textContent = `${video.nameOfVideo}`;
             selectElement.appendChild(option);
         });
+
+        if (videos.length > 0) {
+            loadCars(videos[0].id_video);
+        }
+
+        selectElement.addEventListener('change',() => {
+            const selectedVideoId = selectElement.value;
+            if (selectedVideoId){
+                console.log(selectedVideoId);
+                loadCars(selectedVideoId);
+            }
+        });
     } catch (error) {
         console.error('Błąd podczas ładowania miejsc:', error);
     }
@@ -286,7 +302,7 @@ async function loadCars(id_video) {
         const response = await fetch(`/api/cars?id_video=${id_video}`);
         const cars = await response.json();
 
-        //const selectElement = document.getElementById('car-select');
+        const selectElement = document.getElementById('car-select');
         selectElement.innerHTML = '';
 
         cars.forEach(car => {
@@ -295,11 +311,62 @@ async function loadCars(id_video) {
             option.textContent = `${car.id_car}`;
             selectElement.appendChild(option);
         });
+
+        selectElement.addEventListener('change',() => {
+            const selectedCarId = selectElement.value;
+            if (selectedCarId){
+                console.log(selectedCarId + id_video);
+                showCarsStats();
+            }
+        });
     } catch (error) {
         console.error('Błąd podczas ładowania miejsc:', error);
     }
 }
 
+// Wyświetlanie statystyk
+async function showCarsStats() {
+    try {
+        const selectElement = document.getElementById('video-select');
+        const videoId = selectElement.value;
+
+        if (!videoId) {
+            alert('Wybierz filmik, aby zobaczyć statystyki!');
+            return;
+        }
+
+        const carElement = document.getElementById('car-select');
+        const car = carElement.value;
+
+        if (!car) {
+            alert('Wybierz datę, aby zobaczyć statystyki!');
+            return;
+        }
+
+        const response = await fetch(`/api/carsStats?id_video=${videoId}&id_car=${car}`);
+        const stats = await response.json();
+
+        if (response.status !== 200 || !stats) {
+            throw new Error(stats.error || 'Nie udało się pobrać statystyk.');
+        }
+        
+        //const ifRedText = stats.ifRed? "TAK" : "NIE";
+
+        // Wyświetlanie podsumowujących statystyk
+        const statsDisplay = document.getElementById('speedOfCarStats-display');
+        statsDisplay.innerHTML = `
+            <p>Id auta: ${stats.id_car}</p>
+            <p>Czy przejechał na czerwonym: ${stats.ifRed} km/h</p>
+            <p>Start auta: ${stats.startTime}</p>
+            <p>Średnia prędkość auta: ${stats.avgSpeed.toFixed(2)} km/h</p>
+            <p>Średnia odległość między pojazdami: ${stats.avgDistance.toFixed(2)} m</p>
+        `;
+
+    } catch (error) {
+        console.error('Błąd podczas ładowania statystyk:', error);
+        alert('Nie udało się załadować statystyk.');
+    }
+}
 
 function showSection(sectionId) {
     const sections = document.querySelectorAll('.section');
@@ -316,13 +383,4 @@ function showSection(sectionId) {
 document.addEventListener('DOMContentLoaded', () => {
     loadPlaces();
     showSection('analiza');
-    const carSelect = document.getElementById("car-select");
-    const videoSelect = document.getElementById("video-select");
-    videoSelect.addEventListener('change',() => {
-        const selectedVideoId = videoSelect.value;
-        if (selectedVideoId){
-            console.log(selectedVideoId);
-            loadCars(selectedVideoId);
-        }
-    });
 });
