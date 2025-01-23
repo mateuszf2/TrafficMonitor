@@ -249,7 +249,7 @@ app.get('/api/carsStats', (req, res) => {
     COALESCE(AVG(doC.length), 0) AS avgDistance,
     COALESCE(AVG(soC.speed), 0) AS avgSpeed
     FROM car c
-    JOIN speedOfCar soC 
+    LEFT JOIN speedOfCar soC 
     ON soC.id_car = c.id 
     AND soC.id_video = c.id_video
     LEFT JOIN distanceOfCar doC 
@@ -267,8 +267,8 @@ app.get('/api/carsStats', (req, res) => {
             return res.status(500).json({ error: 'Błąd serwera' });
         }
 
-        console.log('Wynik zapytania do video:', results);
-        res.json(results);
+        console.log('Wynik zapytania do video:', results[0]);
+        res.json(results[0]);
     });
 
 });
@@ -348,7 +348,34 @@ app.get('/api/periodStats/:placeId', (req, res) => {
     });
 });
 
+app.get('/api/carSpeed', (req, res) => {
+    const { id_video, id_car } = req.query;
 
+    if (!id_video || !id_car) {
+        return res.status(400).json({ error: 'Proszę podać id_video i id_car.' });
+    }
+
+    const query = `
+        SELECT secondOfVideo as time, speed as speed
+        FROM speedOfCar
+        WHERE id_video = ? AND id_car = ?
+        ORDER BY secondOfVideo ASC;
+        `
+    ;
+
+    pool.query(query, [id_video, id_car], (err, results) => {
+        if (err) {
+            console.error('Błąd zapytania do bazy:', err);
+            return res.status(500).json({ error: 'Błąd serwera' });
+        }
+
+        if (results.length === 0) {
+            return res.json([]);
+        }
+
+        res.json(results);
+    });
+});
 
 // Uruchomienie serwera
 app.listen(port, () => {

@@ -312,15 +312,17 @@ async function loadCars(id_video) {
             selectElement.appendChild(option);
         });
 
-        selectElement.addEventListener('change',() => {
-            const selectedCarId = selectElement.value;
-            if (selectedCarId){
-                console.log(selectedCarId + id_video);
-                showCarsStats();
-            }
-        });
+        // Jeśli są jakieś auta, wybierz pierwsze i załaduj jego statystyki
+        if (cars.length > 0) {
+            selectElement.value = cars[0].id_car; // Wybierz pierwsze auto
+            showCarsStats(); // Wywołaj funkcję do pobrania statystyk dla pierwszego auta
+        }
+
+        // Dodaj event listener na zmianę wyboru auta
+        selectElement.addEventListener('change', showCarsStats);
+
     } catch (error) {
-        console.error('Błąd podczas ładowania miejsc:', error);
+        console.error('Błąd podczas ładowania aut:', error);
     }
 }
 
@@ -343,6 +345,8 @@ async function showCarsStats() {
             return;
         }
 
+        console.log(videoId + " " + car)
+
         const response = await fetch(`/api/carsStats?id_video=${videoId}&id_car=${car}`);
         const stats = await response.json();
 
@@ -350,21 +354,21 @@ async function showCarsStats() {
             throw new Error(stats.error || 'Nie udało się pobrać statystyk.');
         }
         
-        //const ifRedText = stats.ifRed? "TAK" : "NIE";
+        const ifRedText = stats.ifRed? "TAK" : "NIE";
 
         // Wyświetlanie podsumowujących statystyk
         const statsDisplay = document.getElementById('speedOfCarStats-display');
         statsDisplay.innerHTML = `
             <p>Id auta: ${stats.id_car}</p>
-            <p>Czy przejechał na czerwonym: ${stats.ifRed} km/h</p>
+            <p>Czy przejechał na czerwonym: ${ifRedText}</p>
             <p>Start auta: ${stats.startTime}</p>
-            <p>Średnia prędkość auta: ${stats.avgSpeed.toFixed(2)} km/h</p>
-            <p>Średnia odległość między pojazdami: ${stats.avgDistance.toFixed(2)} m</p>
+            <p>Średnia prędkość auta: ${stats.avgSpeed ? stats.avgSpeed.toFixed(2) : stats.avgSpeed} km/h</p>
+            <p>Średnia odległość między pojazdami: ${stats.avgDistance ? stats.avgDistance.toFixed(2) : stats.avgDistance} m</p>
         `;
-
+        drawSpeedChart(videoId, car);
     } catch (error) {
         console.error('Błąd podczas ładowania statystyk:', error);
-        alert('Nie udało się załadować statystyk.');
+        //alert('Nie udało się załadować statystyk.');
     }
 }
 
@@ -378,6 +382,57 @@ function showSection(sectionId) {
     if (selectedSection) {
         selectedSection.style.display = 'block';
     }
+}
+
+async function drawSpeedChart(id_video, id_car) {
+    const response = await fetch(`/api/carSpeed?id_video=${id_video}&id_car=${id_car}`);
+    const data = await response.json();
+
+    if (!data || data.length === 0) {
+        console.error('Brak danych dla tego auta i filmu');
+        return;
+    }
+
+    const time = data.map(item => item.time); // Tablica czasów
+    const speed = data.map(item => item.speed); // Tablica prędkości
+
+    const ctx = document.getElementById('speedOfCarChart').getContext('2d');
+
+    // Jeśli wykres już istnieje, zniszcz go
+    if (window.speedChart) {
+        window.speedChart.destroy();
+    }
+
+
+    window.speedChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: time, 
+            datasets: [{
+                label: 'Prędkość (km/h)',
+                data: speed, 
+                borderColor: 'rgba(75, 192, 192, 1)',
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Czas (s)'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Prędkość (km/h)' 
+                    }
+                }
+            }
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
