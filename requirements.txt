@@ -1,8 +1,8 @@
 opencv-python
 sorting
-sort-track
 ultralytics
-skimage
 scikit-image
 filterpy
 mysql-connector-python
+cvzone
+dotenv
