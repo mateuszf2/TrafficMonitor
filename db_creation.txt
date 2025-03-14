@@ -1,0 +1,128 @@
+CREATE TABLE admins(
+id INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+name VARCHAR(200) NOT NULL,
+surname VARCHAR(200) NOT NULL,
+salt VARCHAR(64) NOT NULL, 			/* losowy ciag znakow, generowany i dodawany do haslo przed haszowaniem */
+password VARCHAR(256) NOT NULL		/* zahaszowane haslo */
+);
+
+/*ALTER TABLE trafficmonitor.admins
+ADD column salt varchar(64) NOT NULL AFTER surname;
+
+ALTER TABLE trafficmonitor.admins
+modify column password VARCHAR(256) NOT NULL;*/
+
+CREATE TABLE nameOfPlace(
+id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+name VARCHAR(200) NOT NULL,
+city VARCHAR(200) NOT NULL
+);
+
+
+CREATE TABLE assignments(
+id INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+id_employee INT NOT NULL,
+id_nameOfPlace INT NOT NULL,
+description VARCHAR(10000),
+FOREIGN KEY(id_nameOfPlace) REFERENCES nameOfPlace(id),
+FOREIGN KEY(id_employee) REFERENCES admins(id)
+);
+
+CREATE TABLE signalLights(
+id INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+stopLineStartX INT NOT NULL,
+stopLineStartY INT NOT NULL,
+stopLineEndX INT NOT NULL,
+stopLineEndY INT NOT NULL,
+signalX INT NOT NULL,
+signalY INT NOT NULL,
+id_nameOfPlace INT NOT NULL,
+FOREIGN KEY(id_nameOfPlace) REFERENCES nameOfPlace(id)
+);
+
+CREATE TABLE trafficLanes(
+id INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+trafficLanesStartX INT NOT NULL,
+trafficLanesStartY INT NOT NULL,
+trafficLanesEndX INT NOT NULL,
+trafficLanesEndY INT NOT NULL,
+id_nameOfPlace INT NOT NULL,
+FOREIGN KEY(id_nameOfPlace) REFERENCES nameOfPlace(id)
+);
+
+
+CREATE TABLE video(
+id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+link VARCHAR(200) NOT NULL,
+timeSet DATETIME NOT NULL,
+id_nameOfPlace INT NOT NULL,
+FOREIGN KEY(id_nameOfPlace) REFERENCES nameOfPlace(id)
+);
+
+CREATE TABLE car(
+id INT NOT NULL,
+id_video INT NOT NULL,
+ifRed BOOLEAN DEFAULT FALSE,
+startTime FLOAT DEFAULT 0,
+id_trafficLanes INT ,
+FOREIGN KEY(id_trafficLanes) REFERENCES trafficLanes(id),
+FOREIGN KEY(id_video) REFERENCES video(id),
+PRIMARY KEY(id, id_video)
+);
+
+CREATE TABLE speedOfCar (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    id_car INT NOT NULL,
+    id_video INT NOT NULL,
+    secondOfVideo INT NOT NULL,
+    speed FLOAT NOT NULL,
+    FOREIGN KEY (id_car, id_video) REFERENCES car(id, id_video)
+);
+
+CREATE TABLE distanceOfCar(
+id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+id_car1 INT NOT NULL,
+id_car2 INT NOT NULL,
+id_video1 INT NOT NULL,
+id_video2 INT NOT NULL,
+secondOfVideo INT NOT NULL,
+length FLOAT NOT NULL,
+FOREIGN KEY(id_car1,id_video1) REFERENCES car(id,id_video),
+FOREIGN KEY(id_car2,id_video2) REFERENCES car(id,id_video)
+);
+
+
+CREATE USER 'traffic_user'@'%' IDENTIFIED BY 'PASSWORD';
+GRANT SELECT, INSERT, UPDATE, DELETE , TRIGGER ON trafficmonitor.* TO 'traffic_user'@'%';
+FLUSH PRIVILEGES;
+
+SHOW PROCESSLIST;
+
+/* WYZWALACZE (TRIGGERY) */ /* Delimiter - Narzedzie do zmiany seperatora polecen w MySql */
+DELIMITER $$  
+
+CREATE TRIGGER before_insert_admin BEFORE INSERT ON admins
+FOR EACH ROW
+BEGIN 
+	SET NEW.salt = LEFT(UUID(), 8);
+    SET NEW.password = SHA2(CONCAT(NEW.salt, NEW.password), 256);
+END $$
+
+DELIMITER ; 
+
+SHOW triggers;
+
+/* INSERT INTO */
+INSERT INTO admins (name, surname, password, salt) VALUES ('Bartosz', 'Niedzwiedzki', 'PASSWORD');
+INSERT INTO admins (name, surname, password) VALUES ('Mateusz', 'Fabich', 'PASSWORD');
+INSERT INTO admins (name, surname, password) VALUES ('Rafał', 'Skolimowski', 'PASSWORD');
+
+Select * from admins;
+
+UPDATE admins
+SET password = '19bb6ae20c3154eced44632ce5236ddab0cbee2eee31049999c63f0ed4269b57'
+WHERE id = 1;
+
+SHOW VARIABLES LIKE 'lower_case_table_names';
+
+
